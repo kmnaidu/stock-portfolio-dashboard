@@ -1,0 +1,1024 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f5f6fa;
+  color: #2d3436;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: #1e272e;
+  color: #fff;
+}
+
+.app-title {
+  text-decoration: none;
+  color: inherit;
+}
+
+.app-title h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.market-status-badge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.status-open {
+  background: #27ae60;
+  color: #fff;
+}
+
+.status-closed {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.status-prepost {
+  background: #f39c12;
+  color: #1e272e;
+}
+
+.ist-clock {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+}
+
+.last-updated {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.refresh-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 1rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  line-height: 1;
+}
+
+.refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.refresh-btn:active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.connection-lost-banner {
+  background: #e74c3c;
+  color: #fff;
+  text-align: center;
+  padding: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* ── Portfolio Summary Card ── */
+
+.portfolio-summary-card {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1rem 1.5rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem;
+}
+
+.summary-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.summary-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #636e72;
+}
+
+.summary-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-value.gain {
+  color: #27ae60;
+}
+
+.summary-value.loss {
+  color: #e74c3c;
+}
+
+/* ── Stock Grid ── */
+
+.stock-grid-wrapper {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  overflow-x: auto;
+}
+
+.stock-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.stock-grid thead {
+  background: #f8f9fa;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.grid-header {
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #636e72;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.grid-header.sortable {
+  cursor: pointer;
+}
+
+.grid-header.sortable:hover {
+  color: #2d3436;
+}
+
+.grid-header.sorted {
+  color: #2d3436;
+}
+
+.sort-indicator {
+  font-size: 0.65rem;
+}
+
+/* ── Stock Row ── */
+
+.stock-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  border-bottom: 1px solid #f1f2f6;
+}
+
+.stock-row:hover {
+  background: #f8f9fa;
+}
+
+.stock-row td {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.cell-name {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.stock-name {
+  font-weight: 500;
+  color: #2d3436;
+}
+
+.stock-symbol {
+  font-size: 0.7rem;
+  color: #b2bec3;
+}
+
+.cell-price,
+.cell-change,
+.cell-change-pct {
+  font-weight: 500;
+}
+
+.price-up {
+  color: #27ae60;
+}
+
+.price-down {
+  color: #e74c3c;
+}
+
+.cell-high,
+.cell-low {
+  color: #636e72;
+}
+
+.cell-volume {
+  color: #636e72;
+}
+
+.cell-updated {
+  font-size: 0.75rem;
+  color: #b2bec3;
+}
+
+.cell-unavailable {
+  text-align: center;
+  color: #b2bec3;
+  font-style: italic;
+}
+
+.stock-row-unavailable td {
+  opacity: 0.6;
+}
+
+/* ── Price Flash Animations ── */
+
+.flash-green {
+  animation: flashGreen 600ms ease-out;
+}
+
+.flash-red {
+  animation: flashRed 600ms ease-out;
+}
+
+@keyframes flashGreen {
+  0% { background-color: rgba(39, 174, 96, 0.25); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flashRed {
+  0% { background-color: rgba(231, 76, 60, 0.25); }
+  100% { background-color: transparent; }
+}
+
+/* ── Grid Empty State ── */
+
+.stock-grid-empty {
+  text-align: center;
+  padding: 2rem;
+  color: #b2bec3;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Price Header (Stock Detail) ── */
+
+.price-header {
+  padding: 1rem 1.5rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem;
+}
+
+.price-header-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #2d3436;
+}
+
+.price-header-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.price-header-price {
+  font-size: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.price-header-change,
+.price-header-change-pct {
+  font-size: 1rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.price-header-closed-label {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #636e72;
+  font-style: italic;
+}
+
+/* ── Price Chart (Stock Detail) ── */
+
+.price-chart-container {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.price-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.price-chart-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d3436;
+}
+
+.range-selector {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.range-btn {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid #dfe6e9;
+  border-radius: 4px;
+  background: #fff;
+  color: #636e72;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.range-btn:hover {
+  background: #f1f2f6;
+  color: #2d3436;
+}
+
+.range-btn-active {
+  background: #2196F3;
+  color: #fff;
+  border-color: #2196F3;
+}
+
+.range-btn-active:hover {
+  background: #1976D2;
+  border-color: #1976D2;
+}
+
+.price-chart-loading,
+.price-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 350px;
+  color: #b2bec3;
+  font-size: 0.9rem;
+}
+
+.chart-tooltip {
+  background: #1e272e;
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.chart-tooltip-price {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.15rem;
+}
+
+.chart-tooltip-date {
+  opacity: 0.8;
+  font-size: 0.75rem;
+}
+
+/* ── Prediction Panel (Stock Detail) ── */
+
+.prediction-panel {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.prediction-panel-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d3436;
+  margin-bottom: 1rem;
+}
+
+.prediction-loading,
+.prediction-unavailable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  color: #b2bec3;
+  font-size: 0.9rem;
+}
+
+.prediction-unavailable {
+  font-style: italic;
+}
+
+.prediction-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.prediction-card {
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.prediction-card.prediction-up {
+  border-color: rgba(39, 174, 96, 0.3);
+  background: rgba(39, 174, 96, 0.03);
+}
+
+.prediction-card.prediction-down {
+  border-color: rgba(231, 76, 60, 0.3);
+  background: rgba(231, 76, 60, 0.03);
+}
+
+.prediction-card.prediction-neutral {
+  border-color: #e9ecef;
+  background: #fafafa;
+}
+
+.prediction-horizon {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #636e72;
+}
+
+.prediction-price-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.prediction-arrow {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.prediction-up .prediction-arrow {
+  color: #27ae60;
+}
+
+.prediction-down .prediction-arrow {
+  color: #e74c3c;
+}
+
+.prediction-neutral .prediction-arrow {
+  color: #636e72;
+}
+
+.prediction-price {
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #2d3436;
+}
+
+.prediction-change {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: #636e72;
+}
+
+.prediction-confidence {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.prediction-confidence-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #b2bec3;
+  flex-shrink: 0;
+}
+
+.prediction-confidence-bar {
+  flex: 1;
+  height: 6px;
+  background: #e9ecef;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.prediction-confidence-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: #2196F3;
+  transition: width 0.3s ease;
+}
+
+.prediction-confidence-value {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #636e72;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 2.5em;
+  text-align: right;
+}
+
+.prediction-disclaimer {
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  color: #b2bec3;
+  font-style: italic;
+  text-align: center;
+}
+
+/* ── Recommendation Panel (Stock Detail) ── */
+
+.recommendation-panel {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.recommendation-panel-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d3436;
+  margin-bottom: 1rem;
+}
+
+.recommendation-loading,
+.recommendation-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  color: #b2bec3;
+  font-size: 0.9rem;
+}
+
+.recommendation-empty {
+  font-style: italic;
+}
+
+.recommendation-consensus {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.consensus-badge {
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.consensus-buy {
+  background: #27ae60;
+  color: #fff;
+}
+
+.consensus-sell {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.consensus-hold {
+  background: #f39c12;
+  color: #1e272e;
+}
+
+.consensus-meta {
+  font-size: 0.8rem;
+  color: #636e72;
+}
+
+.recommendation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.recommendation-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #f1f2f6;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.recommendation-item:hover {
+  background: #f8f9fa;
+}
+
+.rec-firm {
+  font-weight: 500;
+  color: #2d3436;
+}
+
+.rec-rating-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.rec-rating-buy {
+  background: rgba(39, 174, 96, 0.12);
+  color: #27ae60;
+}
+
+.rec-rating-sell {
+  background: rgba(231, 76, 60, 0.12);
+  color: #e74c3c;
+}
+
+.rec-rating-hold {
+  background: rgba(243, 156, 18, 0.12);
+  color: #e67e22;
+}
+
+.rec-target {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: #2d3436;
+}
+
+.rec-date {
+  font-size: 0.75rem;
+  color: #b2bec3;
+  white-space: nowrap;
+}
+
+/* ── Metrics Panel (Stock Detail) ── */
+
+.metrics-panel {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.metrics-panel-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d3436;
+  margin-bottom: 1rem;
+}
+
+.metrics-loading,
+.metrics-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  color: #b2bec3;
+  font-size: 0.9rem;
+}
+
+.metrics-error {
+  font-style: italic;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.75rem;
+  border: 1px solid #f1f2f6;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.metric-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #636e72;
+}
+
+.metric-value {
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #2d3436;
+}
+
+/* ── Stock Detail Page ── */
+
+.stock-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #2196F3;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+  color: #1976D2;
+}
+
+.detail-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #b2bec3;
+  font-size: 0.95rem;
+}
+
+.detail-error {
+  margin-top: 1rem;
+  padding: 1.5rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  color: #e74c3c;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+/* ══════════════════════════════════════════════════
+   Responsive Layout
+   Mobile: <768px
+   Tablet: 768px–1023px
+   Desktop: ≥1024px (default styles above)
+   ══════════════════════════════════════════════════ */
+
+/* ── Mobile (<768px) ── */
+
+@media (max-width: 767px) {
+  /* Header: stack title and controls vertically */
+  .app-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+  }
+
+  .app-title h1 {
+    font-size: 1rem;
+  }
+
+  .header-right {
+    gap: 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  /* Main content: tighter padding */
+  main {
+    padding: 1rem 0.75rem;
+  }
+
+  /* Portfolio Summary: stack metrics vertically */
+  .portfolio-summary-card {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .summary-value {
+    font-size: 1.1rem;
+  }
+
+  /* StockGrid: card-based layout on mobile */
+  .stock-grid-wrapper {
+    overflow-x: visible;
+  }
+
+  .stock-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .stock-grid thead {
+    display: none;
+  }
+
+  .stock-grid tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .stock-row,
+  .stock-row-unavailable {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    border-bottom: 1px solid #e9ecef;
+  }
+
+  .stock-row td {
+    padding: 0.2rem 0;
+    white-space: normal;
+  }
+
+  .stock-row td.cell-name {
+    grid-column: 1 / -1;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid #f1f2f6;
+    margin-bottom: 0.15rem;
+  }
+
+  .stock-row td.cell-unavailable {
+    grid-column: 1 / -1;
+  }
+
+  .stock-row td.cell-updated {
+    grid-column: 1 / -1;
+    text-align: right;
+  }
+
+  /* Price Chart: reduce height */
+  .price-chart-loading,
+  .price-chart-empty {
+    height: 220px;
+  }
+
+  .price-chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .range-selector {
+    flex-wrap: wrap;
+  }
+
+  /* Price Header: smaller text */
+  .price-header-price {
+    font-size: 1.5rem;
+  }
+
+  /* Prediction cards: single column */
+  .prediction-cards {
+    grid-template-columns: 1fr;
+  }
+
+  /* Metrics grid: 2 columns */
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Recommendation items: stack vertically */
+  .recommendation-item {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+  }
+
+  .rec-firm {
+    grid-column: 1 / -1;
+  }
+
+  .rec-date {
+    text-align: right;
+  }
+
+  /* Stock Detail page sections: tighter spacing */
+  .price-header,
+  .price-chart-container,
+  .prediction-panel,
+  .recommendation-panel,
+  .metrics-panel {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+  }
+}
+
+/* ── Tablet (768px–1023px) ── */
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  main {
+    padding: 1.25rem 1rem;
+  }
+
+  /* Portfolio Summary: keep horizontal but allow wrapping */
+  .portfolio-summary-card {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  /* StockGrid: keep table but hide less-important columns */
+  .stock-grid .cell-high,
+  .stock-grid .cell-low,
+  .stock-grid .cell-updated {
+    display: none;
+  }
+
+  .stock-grid thead th:nth-child(5),
+  .stock-grid thead th:nth-child(6),
+  .stock-grid thead th:nth-child(8) {
+    display: none;
+  }
+
+  /* Prediction cards: 2 columns */
+  .prediction-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Metrics grid: 3 columns */
+  .metrics-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Price Chart: slightly reduced height */
+  .price-chart-loading,
+  .price-chart-empty {
+    height: 280px;
+  }
+
+  /* Recommendation items: keep grid but tighter */
+  .recommendation-item {
+    gap: 0.5rem;
+    font-size: 0.82rem;
+  }
+}
+
+/* ── Desktop (≥1024px) — enhancements over base styles ── */
+
+@media (min-width: 1024px) {
+  main {
+    max-width: 1200px;
+  }
+}
