@@ -80,13 +80,61 @@ export interface PredictionSet {
 }
 
 export const SUPPORTED_SECURITIES = [
-  { symbol: 'RELIANCE.NS', name: 'Reliance Industries', sector: 'Energy' },
+  // Petroleum & Energy
+  { symbol: 'RELIANCE.NS', name: 'Reliance Industries', sector: 'Petroleum' },
+  { symbol: 'ADANIPOWER.NS', name: 'Adani Power', sector: 'Power' },
+  { symbol: 'TATAPOWER.NS', name: 'Tata Power', sector: 'Power' },
+
+  // Banking
   { symbol: 'HDFCBANK.NS', name: 'HDFC Bank', sector: 'Banking' },
   { symbol: 'SBIN.NS', name: 'State Bank of India', sector: 'Banking' },
-  { symbol: 'HAL.NS', name: 'Hindustan Aeronautics', sector: 'Defence' },
+  { symbol: 'ICICIBANK.NS', name: 'ICICI Bank', sector: 'Banking' },
+  { symbol: 'CUB.NS', name: 'City Union Bank', sector: 'Banking' },
+
+  // IT
+  { symbol: 'TCS.NS', name: 'Tata Consultancy Services', sector: 'IT' },
+  { symbol: 'INFY.NS', name: 'Infosys', sector: 'IT' },
+  { symbol: 'KPITTECH.NS', name: 'KPIT Technologies', sector: 'IT' },
+
+  // Auto
+  { symbol: 'M&M.NS', name: 'Mahindra & Mahindra', sector: 'Auto' },
+  { symbol: 'TVSMOTOR.NS', name: 'TVS Motor', sector: 'Auto' },
+  { symbol: 'TATAMOTORS.NS', name: 'Tata Motors', sector: 'Auto' }, // TMC → TATAMOTORS
+
+  // Engineering & Defence
+  { symbol: 'HAL.NS', name: 'Hindustan Aeronautics', sector: 'Engineering' },
+  { symbol: 'BEL.NS', name: 'Bharat Electronics', sector: 'Engineering' },
+  { symbol: 'LT.NS', name: 'Larsen & Toubro', sector: 'Construction' },
+
+  // Telecom
   { symbol: 'BHARTIARTL.NS', name: 'Bharti Airtel', sector: 'Telecom' },
+
+  // Pharma & Health
+  { symbol: 'DRREDDY.NS', name: "Dr. Reddy's Laboratories", sector: 'Pharma' },
+  { symbol: 'BIOCON.NS', name: 'Biocon', sector: 'Pharma' },
+
+  // FMCG & Consumer
+  { symbol: 'ITC.NS', name: 'ITC', sector: 'Tobacco' },
+  { symbol: 'DABUR.NS', name: 'Dabur India', sector: 'Personal Care' },
+
+  // Metals
+  { symbol: 'NATIONALUM.NS', name: 'National Aluminium', sector: 'Metals' },
+
+  // Transport & Service
+  { symbol: 'INDIGO.NS', name: 'InterGlobe Aviation (IndiGo)', sector: 'Transport' },
+  { symbol: 'ETERNAL.NS', name: 'Eternal (Zomato)', sector: 'Service' },
+  { symbol: 'DELHIVERY.NS', name: 'Delhivery', sector: 'Service' },
+
+  // Hospitality
+  { symbol: 'INDHOTEL.NS', name: 'Indian Hotels (Taj)', sector: 'Hospitality' },
+
+  // ETFs & Finance
   { symbol: 'NIFTYBEES.NS', name: 'Nippon India Nifty BeES', sector: 'ETF' },
   { symbol: 'GOLDBEES.NS', name: 'Nippon India Gold BeES', sector: 'ETF' },
+  { symbol: 'SILVERBEES.NS', name: 'Nippon India Silver BeES', sector: 'ETF' },
+  { symbol: 'JUNIORBEES.NS', name: 'Nippon India Junior BeES', sector: 'ETF' },
+  { symbol: 'PHARMABEES.NS', name: 'Nippon India Pharma BeES', sector: 'ETF' },
+  { symbol: 'ITBEES.NS', name: 'Nippon India IT BeES', sector: 'ETF' },
 ] as const;
 
 export type SupportedSymbol = typeof SUPPORTED_SECURITIES[number]['symbol'];
