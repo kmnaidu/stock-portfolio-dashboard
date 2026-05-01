@@ -327,60 +327,57 @@ export function createApiRouter(services: {
 
       const results: any[] = [];
 
-      // Fetch analyst data in parallel batches
-      const batchSize = 5;
-      for (let i = 0; i < symbols.length; i += batchSize) {
-        const batch = symbols.slice(i, i + batchSize);
-        const batchResults = await Promise.all(
-          batch.map(async (symbol) => {
-            const analyst = await analystDataService.getAnalystData(symbol);
-            const quote = quoteMap.get(symbol);
-            if (!quote) return null;
+      // Sequential fetch with short timeout per stock
+      // Cached stocks return instantly; uncached may timeout — skipped gracefully
+      for (const symbol of symbols) {
+        try {
+          const analyst = await analystDataService.getAnalystData(symbol);
+          const quote = quoteMap.get(symbol);
+          if (!quote) continue;
 
-            const currentPrice = quote.price;
+          const currentPrice = quote.price;
+          const security = SUPPORTED_SECURITIES.find((s) => s.symbol === symbol);
+          const name = security?.name ?? quote.shortName ?? symbol.replace('.NS', '');
+          const sector = security?.sector ?? 'Other';
 
-            // Try to find friendly name from SUPPORTED_SECURITIES, fallback to quote shortName
-            const security = SUPPORTED_SECURITIES.find((s) => s.symbol === symbol);
-            const name = security?.name ?? quote.shortName ?? symbol.replace('.NS', '');
-            const sector = security?.sector ?? 'Other';
-
-            if (!analyst || analyst.targetMeanPrice <= 0 || analyst.numberOfAnalystOpinions === 0) {
-              return {
-                symbol,
-                name,
-                sector,
-                currentPrice,
-                hasAnalystData: false,
-                numberOfAnalystOpinions: 0,
-              };
-            }
-
-            const upsidePercent = ((analyst.targetMeanPrice - currentPrice) / currentPrice) * 100;
-
-            return {
+          if (!analyst || analyst.targetMeanPrice <= 0 || analyst.numberOfAnalystOpinions === 0) {
+            results.push({
               symbol,
               name,
               sector,
               currentPrice,
-              hasAnalystData: true,
-              targetMeanPrice: analyst.targetMeanPrice,
-              targetHighPrice: analyst.targetHighPrice,
-              targetLowPrice: analyst.targetLowPrice,
-              upsidePercent: Math.round(upsidePercent * 100) / 100,
-              upsideToHigh: Math.round(((analyst.targetHighPrice - currentPrice) / currentPrice) * 10000) / 100,
-              upsideToLow: Math.round(((analyst.targetLowPrice - currentPrice) / currentPrice) * 10000) / 100,
-              numberOfAnalystOpinions: analyst.numberOfAnalystOpinions,
-              recommendationKey: analyst.recommendationKey,
-              recommendationMean: analyst.recommendationMean,
-              trailingPE: analyst.trailingPE,
-              forwardPE: analyst.forwardPE,
-              pegRatio: analyst.pegRatio,
-              revenueGrowth: analyst.revenueGrowth,
-              earningsGrowth: analyst.earningsGrowth,
-            };
-          })
-        );
-        results.push(...batchResults.filter(r => r !== null));
+              hasAnalystData: false,
+              numberOfAnalystOpinions: 0,
+            });
+            continue;
+          }
+
+          const upsidePercent = ((analyst.targetMeanPrice - currentPrice) / currentPrice) * 100;
+
+          results.push({
+            symbol,
+            name,
+            sector,
+            currentPrice,
+            hasAnalystData: true,
+            targetMeanPrice: analyst.targetMeanPrice,
+            targetHighPrice: analyst.targetHighPrice,
+            targetLowPrice: analyst.targetLowPrice,
+            upsidePercent: Math.round(upsidePercent * 100) / 100,
+            upsideToHigh: Math.round(((analyst.targetHighPrice - currentPrice) / currentPrice) * 10000) / 100,
+            upsideToLow: Math.round(((analyst.targetLowPrice - currentPrice) / currentPrice) * 10000) / 100,
+            numberOfAnalystOpinions: analyst.numberOfAnalystOpinions,
+            recommendationKey: analyst.recommendationKey,
+            recommendationMean: analyst.recommendationMean,
+            trailingPE: analyst.trailingPE,
+            forwardPE: analyst.forwardPE,
+            pegRatio: analyst.pegRatio,
+            revenueGrowth: analyst.revenueGrowth,
+            earningsGrowth: analyst.earningsGrowth,
+          });
+        } catch {
+          // Skip this symbol on error, continue with rest
+        }
       }
 
       const withAnalyst = results.filter((r: any) => r.hasAnalystData);
@@ -394,7 +391,11 @@ export function createApiRouter(services: {
         generatedAt: new Date().toISOString(),
       };
 
-      services.cache.set(cacheKey, response, 3600);
+      // Cache based on how much analyst data we got
+      // Full data → cache 1 hour. Partial → cache only 5 min so we retry soon
+      const fullSuccess = withAnalyst.length >= symbols.length * 0.8;
+      const cacheTTL = fullSuccess ? 3600 : 300;
+      services.cache.set(cacheKey, response, cacheTTL);
       res.json(response);
     } catch (err) {
       res.status(503).json({

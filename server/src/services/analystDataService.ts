@@ -88,7 +88,7 @@ export function createAnalystDataService(cache: CacheService): AnalystDataServic
 
       try {
         const res = await fetch(`${PYTHON_SERVICE_BASE}/analyst/${encodeURIComponent(symbol)}`, {
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(60000), // 60s — ScraperAPI + proxy needs time
         });
 
         if (!res.ok) return null;
