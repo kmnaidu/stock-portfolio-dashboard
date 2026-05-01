@@ -1,21 +1,48 @@
 """
 Python microservice that wraps yfinance to provide real analyst
 recommendations, target prices, and fundamentals for Indian stocks.
+
+Uses ScraperAPI to route requests through residential IPs when running
+on cloud providers (Render, Railway, etc.) that Yahoo Finance blocks.
 """
 
 from flask import Flask, jsonify
 import yfinance as yf
+import requests
 import time
 import random
 import os
 
 app = Flask(__name__)
 
+# Configuration
+CACHE_TTL_SECONDS = 24 * 60 * 60  # 24 hours (critical on free tier)
+SCRAPERAPI_KEY = os.environ.get('SCRAPERAPI_KEY', '').strip()
+USE_SCRAPERAPI = bool(SCRAPERAPI_KEY)
+
+# Configure yfinance to use ScraperAPI as a proxy if key provided
+if USE_SCRAPERAPI:
+    # ScraperAPI proxy URL — routes all HTTPS traffic through residential IPs
+    proxy_url = f"http://scraperapi:{SCRAPERAPI_KEY}@proxy-server.scraperapi.com:8001"
+    proxies = {
+        "http": proxy_url,
+        "https": proxy_url,
+    }
+    # Monkey-patch yfinance's internal session to use our proxy
+    import yfinance.utils as yf_utils
+    _original_session = requests.Session()
+    _original_session.proxies = proxies
+    _original_session.verify = False  # ScraperAPI requires this
+    # Store as module-level so yfinance picks it up
+    yf.shared._requests = _original_session
+    print(f"✓ ScraperAPI proxy configured")
+else:
+    print("⚠ SCRAPERAPI_KEY not set — requests go directly (may be rate-limited on cloud)")
+
 # Simple in-memory cache: { key: (data, expiry_timestamp) }
 _cache = {}
-CACHE_TTL_SECONDS = 24 * 60 * 60  # 24 hours (reduce API hits, critical on free tier)
 _last_fetch_time = 0
-_min_delay_between_fetches = 2.0  # seconds
+_min_delay_between_fetches = 1.0
 
 
 def _cached_or_fetch(key, fetcher):
@@ -27,14 +54,12 @@ def _cached_or_fetch(key, fetcher):
         if now < expiry:
             return data
 
-    # Throttle: enforce minimum delay between live fetches
     elapsed = now - _last_fetch_time
     if elapsed < _min_delay_between_fetches:
         time.sleep(_min_delay_between_fetches - elapsed)
 
     _last_fetch_time = time.time()
 
-    # Retry with exponential backoff for rate limits
     max_retries = 3
     for attempt in range(max_retries):
         try:
@@ -48,7 +73,6 @@ def _cached_or_fetch(key, fetcher):
                     wait_time = (2 ** attempt) + random.uniform(0, 1)
                     time.sleep(wait_time)
                     continue
-            # Return error result but don't cache failures
             return {'error': str(e), 'symbol': key.split(':', 1)[1] if ':' in key else key}
 
     return {'error': 'Max retries exceeded', 'symbol': key}
@@ -69,7 +93,11 @@ def safe_get(info, key, default=None):
 
 @app.route('/health')
 def health():
-    return jsonify({'status': 'ok', 'service': 'yfinance-python'})
+    return jsonify({
+        'status': 'ok',
+        'service': 'yfinance-python',
+        'scraperapi': USE_SCRAPERAPI,
+    })
 
 
 @app.route('/analyst/<symbol>')
@@ -82,7 +110,6 @@ def analyst_data(symbol):
         if not info or len(info) < 5:
             raise Exception('Empty info response from yfinance')
 
-        # Recommendations trend from analyst firms
         rec_trend = []
         try:
             recs = t.recommendations
