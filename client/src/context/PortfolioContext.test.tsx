@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { PortfolioProvider, usePortfolio } from './PortfolioContext';
+import { WatchlistProvider } from './WatchlistContext';
 import type { ReactNode } from 'react';
 
 vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
@@ -8,7 +9,11 @@ vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
 ));
 
 function wrapper({ children }: { children: ReactNode }) {
-  return <PortfolioProvider>{children}</PortfolioProvider>;
+  return (
+    <WatchlistProvider>
+      <PortfolioProvider>{children}</PortfolioProvider>
+    </WatchlistProvider>
+  );
 }
 
 describe('PortfolioContext', () => {

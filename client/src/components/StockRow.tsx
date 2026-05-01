@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { QuoteData } from 'shared/types';
+import { useWatchlist } from '../context/WatchlistContext';
+import HoldingsModal from './HoldingsModal';
 
 /**
  * Pure function to determine price direction based on current price vs previous close.
@@ -57,6 +59,10 @@ export default function StockRow({ quote }: StockRowProps) {
   const navigate = useNavigate();
   const prevPriceRef = useRef<number>(quote.price);
   const [flashClass, setFlashClass] = useState('');
+  const [holdingsOpen, setHoldingsOpen] = useState(false);
+  const { getHolding } = useWatchlist();
+  const holding = getHolding(quote.symbol);
+  const hasHoldings = (holding?.quantity ?? 0) > 0 && (holding?.avgBuyPrice ?? 0) > 0;
 
   const direction = getPriceDirection(quote.price, quote.previousClose);
   const directionClass = direction === 'up' ? 'price-up' : direction === 'down' ? 'price-down' : '';
@@ -93,24 +99,40 @@ export default function StockRow({ quote }: StockRowProps) {
   }
 
   return (
-    <tr
-      className={`stock-row ${flashClass}`}
-      onClick={() => navigate(`/stock/${quote.symbol}`)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && navigate(`/stock/${quote.symbol}`)}
-    >
-      <td className="cell-name">
-        <span className="stock-name">{quote.shortName}</span>
-        <span className="stock-symbol">{quote.symbol.replace('.NS', '')}</span>
-      </td>
-      <td className={`cell-price ${directionClass}`}>{formatINR(quote.price)}</td>
-      <td className={`cell-change ${directionClass}`}>{formatChange(quote.change)}</td>
-      <td className={`cell-change-pct ${directionClass}`}>{formatPercent(quote.changePercent)}</td>
-      <td className="cell-high">{formatINR(quote.dayHigh)}</td>
-      <td className="cell-low">{formatINR(quote.dayLow)}</td>
-      <td className="cell-volume">{formatVolume(quote.volume)}</td>
-      <td className="cell-updated">{formatTimestamp(quote.lastUpdated)}</td>
-    </tr>
+    <>
+      <tr
+        className={`stock-row ${flashClass}`}
+        role="button"
+        tabIndex={0}
+      >
+        <td className="cell-name" onClick={() => navigate(`/stock/${quote.symbol}`)}>
+          <span className="stock-name">{quote.shortName}</span>
+          <span className="stock-symbol">{quote.symbol.replace('.NS', '')}</span>
+        </td>
+        <td className="cell-price" onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatINR(quote.price)}</td>
+        <td className={`cell-change ${directionClass}`} onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatChange(quote.change)}</td>
+        <td className={`cell-change-pct ${directionClass}`} onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatPercent(quote.changePercent)}</td>
+        <td className="cell-high" onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatINR(quote.dayHigh)}</td>
+        <td className="cell-low" onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatINR(quote.dayLow)}</td>
+        <td className="cell-volume" onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatVolume(quote.volume)}</td>
+        <td className="cell-updated" onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatTimestamp(quote.lastUpdated)}</td>
+        <td className="cell-actions">
+          <button
+            className={`stock-row-portfolio-btn ${hasHoldings ? 'has-holdings' : ''}`}
+            onClick={(e) => { e.stopPropagation(); setHoldingsOpen(true); }}
+            title={hasHoldings ? 'Edit holdings' : 'Add to portfolio'}
+          >
+            {hasHoldings ? `📊 ${holding!.quantity}` : '+ Holdings'}
+          </button>
+        </td>
+      </tr>
+      <HoldingsModal
+        symbol={quote.symbol}
+        name={quote.shortName}
+        currentPrice={quote.price}
+        isOpen={holdingsOpen}
+        onClose={() => setHoldingsOpen(false)}
+      />
+    </>
   );
 }

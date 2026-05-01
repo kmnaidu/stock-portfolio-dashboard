@@ -106,7 +106,14 @@ export default function PredictionPanel({ symbol, currentPrice }: PredictionPane
 
   return (
     <div className="prediction-panel">
-      <h3 className="prediction-panel-title">Price Predictions</h3>
+      <div className="rec-header-row">
+        <h3 className="prediction-panel-title">📉 Short-Term Price Predictions</h3>
+        <span className="rec-source-badge">Linear regression</span>
+      </div>
+      <p className="rec-disclaimer-top">
+        These short-term predictions use simple math (linear regression on recent prices).
+        They can differ from analyst views — for long-term targets, see the <strong>Institutional Analyst View</strong> above.
+      </p>
 
       <div className="prediction-cards">
         {predictions.predictions.map((p) => {

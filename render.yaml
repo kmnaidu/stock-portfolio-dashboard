@@ -1,0 +1,32 @@
+# Render Blueprint — deploys Python + Node services from repo root
+# Deploy guide: Connect this repo to Render → Create Blueprint Instance
+
+services:
+  # Python yfinance microservice
+  - type: web
+    name: stock-python
+    runtime: python
+    buildCommand: pip install -r python-service/requirements.txt
+    startCommand: cd python-service && gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+    plan: free
+
+  # Node.js API backend
+  - type: web
+    name: stock-api
+    runtime: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.0
+      - key: PYTHON_SERVICE_URL
+        fromService:
+          type: web
+          name: stock-python
+          property: hostport
+      - key: CORS_ORIGIN
+        value: "*"
+    plan: free

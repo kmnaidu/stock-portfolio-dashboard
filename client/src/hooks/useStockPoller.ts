@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { QuoteData, MarketStatus } from 'shared/types';
+import { useWatchlist } from '../context/WatchlistContext';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 const POLL_INTERVAL_OPEN_MS = 15_000;
@@ -28,6 +29,7 @@ interface UseStockPollerResult {
 }
 
 export function useStockPoller(): UseStockPollerResult {
+  const { symbols } = useWatchlist();
   const [quotes, setQuotes] = useState<Map<string, QuoteData>>(new Map());
   const [marketStatus, setMarketStatus] = useState<MarketStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,14 +40,22 @@ export function useStockPoller(): UseStockPollerResult {
   const consecutiveFailures = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Keep a stable key for the symbols list so memoized fetchQuotes updates when watchlist changes
+  const symbolsKey = symbols.join(',');
+
   const pollInterval = useMemo(
     () => getPollingInterval(marketStatus?.status ?? null),
     [marketStatus?.status]
   );
 
   const fetchQuotes = useCallback(async () => {
+    if (symbolsKey.length === 0) {
+      setQuotes(new Map());
+      setIsLoading(false);
+      return;
+    }
     try {
-      const response = await fetch(`${API_BASE}/api/quotes`);
+      const response = await fetch(`${API_BASE}/api/quotes?symbols=${encodeURIComponent(symbolsKey)}`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -74,7 +84,7 @@ export function useStockPoller(): UseStockPollerResult {
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected]);
+  }, [isConnected, symbolsKey]);
 
   const fetchMarketStatus = useCallback(async () => {
     try {

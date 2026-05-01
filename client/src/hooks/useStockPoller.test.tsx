@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useStockPoller, getPollingInterval } from './useStockPoller';
+import { WatchlistProvider } from '../context/WatchlistContext';
 import type { QuoteData } from 'shared/types';
+import type { ReactNode } from 'react';
+
+function wrapper({ children }: { children: ReactNode }) {
+  return <WatchlistProvider>{children}</WatchlistProvider>;
+}
 
 const mockQuote: QuoteData = {
   symbol: 'RELIANCE.NS',
@@ -45,7 +51,7 @@ describe('useStockPoller', () => {
       return createFetchResponse({}, 404);
     });
 
-    const { result } = renderHook(() => useStockPoller());
+    const { result } = renderHook(() => useStockPoller(), { wrapper });
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10);
@@ -67,7 +73,7 @@ describe('useStockPoller', () => {
       return Promise.reject(new Error('Network error'));
     });
 
-    const { result } = renderHook(() => useStockPoller());
+    const { result } = renderHook(() => useStockPoller(), { wrapper });
 
     // Failure 1 (mount)
     await act(async () => {
@@ -104,7 +110,7 @@ describe('useStockPoller', () => {
       return createFetchResponse({}, 404);
     });
 
-    const { result } = renderHook(() => useStockPoller());
+    const { result } = renderHook(() => useStockPoller(), { wrapper });
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10);

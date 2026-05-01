@@ -46,6 +46,7 @@ const COLUMNS: { key: string; label: string; sortField?: SortField }[] = [
   { key: 'low', label: 'Day Low' },
   { key: 'volume', label: 'Volume', sortField: 'volume' },
   { key: 'updated', label: 'Last Updated' },
+  { key: 'actions', label: '' },
 ];
 
 export default function StockGrid() {

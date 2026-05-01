@@ -108,8 +108,8 @@ export default function RecommendationList({ symbol }: RecommendationListProps) 
   if (loading) {
     return (
       <div className="recommendation-panel">
-        <h3 className="recommendation-panel-title">Analyst Recommendations</h3>
-        <div className="recommendation-loading">Loading recommendations…</div>
+        <h3 className="recommendation-panel-title">Technical Analysis Signals</h3>
+        <div className="recommendation-loading">Loading signals…</div>
       </div>
     );
   }
@@ -117,8 +117,8 @@ export default function RecommendationList({ symbol }: RecommendationListProps) 
   if (unavailable || !data || data.recommendations.length === 0) {
     return (
       <div className="recommendation-panel">
-        <h3 className="recommendation-panel-title">Analyst Recommendations</h3>
-        <div className="recommendation-empty">No Analyst Recommendations Available</div>
+        <h3 className="recommendation-panel-title">Technical Analysis Signals</h3>
+        <div className="recommendation-empty">Signals unavailable</div>
       </div>
     );
   }
@@ -127,14 +127,21 @@ export default function RecommendationList({ symbol }: RecommendationListProps) 
 
   return (
     <div className="recommendation-panel">
-      <h3 className="recommendation-panel-title">Analyst Recommendations</h3>
+      <div className="rec-header-row">
+        <h3 className="recommendation-panel-title">⚙️ Technical Analysis Signals</h3>
+        <span className="rec-source-badge">Computed from price history</span>
+      </div>
+      <p className="rec-disclaimer-top">
+        These are algorithm-generated signals based on moving averages, momentum, and volatility.
+        For real analyst consensus, see the <strong>Institutional Analyst View</strong> at the top of this page.
+      </p>
 
       <div className="recommendation-consensus">
         <span className={consensusBadgeClass(data.consensusRating)}>
           {data.consensusRating}
         </span>
         <span className="consensus-meta">
-          Score {data.consensusScore.toFixed(1)} · {data.totalAnalysts} analyst{data.totalAnalysts !== 1 ? 's' : ''}
+          Technical score {data.consensusScore.toFixed(1)} · {data.totalAnalysts} signal{data.totalAnalysts !== 1 ? 's' : ''}
         </span>
       </div>
 
