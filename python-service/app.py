@@ -2,8 +2,8 @@
 Python microservice that wraps yfinance to provide real analyst
 recommendations, target prices, and fundamentals for Indian stocks.
 
-Uses ScraperAPI to route requests through residential IPs when running
-on cloud providers (Render, Railway, etc.) that Yahoo Finance blocks.
+Uses ScraperAPI in PROXY mode to route yfinance requests through residential IPs.
+yfinance handles crumb authentication automatically, which works over proxy.
 """
 
 from flask import Flask, jsonify
@@ -12,6 +12,9 @@ import requests
 import time
 import random
 import os
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
@@ -20,67 +23,35 @@ CACHE_TTL_SECONDS = 24 * 60 * 60
 SCRAPERAPI_KEY = os.environ.get('SCRAPERAPI_KEY', '').strip()
 USE_SCRAPERAPI = bool(SCRAPERAPI_KEY)
 
-# Configure yfinance to use ScraperAPI proxy at the session level
-# yfinance accepts a proxy arg, so we'll pass it on each Ticker call
 if USE_SCRAPERAPI:
-    # ScraperAPI proxy endpoint
+    # ScraperAPI proxy mode — all requests go through residential IPs
     PROXY_URL = f"http://scraperapi:{SCRAPERAPI_KEY}@proxy-server.scraperapi.com:8001"
-    print(f"✓ ScraperAPI proxy configured (key starts with {SCRAPERAPI_KEY[:6]}...)")
+    print(f"✓ ScraperAPI proxy configured")
 else:
     PROXY_URL = None
-    print("⚠ SCRAPERAPI_KEY not set — requests go directly (may be rate-limited)")
-
-
-# ── Custom session with ScraperAPI proxy ────────────────────
-def make_session():
-    """Create a requests.Session configured with ScraperAPI proxy."""
-    session = requests.Session()
-    if USE_SCRAPERAPI:
-        session.proxies = {
-            'http': PROXY_URL,
-            'https': PROXY_URL,
-        }
-        # ScraperAPI requires SSL verification to be disabled
-        session.verify = False
-        # Suppress the SSL warning
-        import urllib3
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    return session
+    print("⚠ SCRAPERAPI_KEY not set — direct requests (may be rate-limited)")
 
 
 # ── Simple in-memory cache ──────────────────────────────────
 _cache = {}
-_last_fetch_time = 0
-_min_delay_between_fetches = 1.0
 
 
 def _cached_or_fetch(key, fetcher):
-    global _last_fetch_time
     now = time.time()
     if key in _cache:
         data, expiry = _cache[key]
         if now < expiry:
             return data
 
-    elapsed = now - _last_fetch_time
-    if elapsed < _min_delay_between_fetches:
-        time.sleep(_min_delay_between_fetches - elapsed)
-
-    _last_fetch_time = time.time()
-
-    max_retries = 3
-    for attempt in range(max_retries):
+    for attempt in range(3):
         try:
             data = fetcher()
             _cache[key] = (data, now + CACHE_TTL_SECONDS)
             return data
         except Exception as e:
-            err_str = str(e).lower()
-            if 'rate' in err_str or 'too many' in err_str or '429' in err_str:
-                if attempt < max_retries - 1:
-                    wait_time = (2 ** attempt) + random.uniform(0, 1)
-                    time.sleep(wait_time)
-                    continue
+            if attempt < 2:
+                time.sleep((2 ** attempt) + random.uniform(0, 0.5))
+                continue
             return {'error': str(e), 'symbol': key.split(':', 1)[1] if ':' in key else key}
 
     return {'error': 'Max retries exceeded', 'symbol': key}
@@ -98,116 +69,78 @@ def safe_get(info, key, default=None):
     return val
 
 
-# ── Direct Yahoo Finance API calls through ScraperAPI ──────
-
-def fetch_via_scraperapi(url):
-    """Fetch a Yahoo Finance URL through ScraperAPI."""
-    if not USE_SCRAPERAPI:
-        # Direct fetch if no proxy
-        r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=30)
-        r.raise_for_status()
-        return r.json()
-
-    # ScraperAPI REST API endpoint (easier than proxy mode)
-    api_url = 'https://api.scraperapi.com'
-    params = {
-        'api_key': SCRAPERAPI_KEY,
-        'url': url,
-        'country_code': 'us',  # US IPs work best for Yahoo
-    }
-    r = requests.get(api_url, params=params, timeout=60)
-    if r.status_code == 429:
-        raise Exception('Too Many Requests. Rate limited. Try after a while.')
-    r.raise_for_status()
-    return r.json()
+def _make_yf_session():
+    """Create a requests.Session that yfinance will use."""
+    session = requests.Session()
+    if USE_SCRAPERAPI:
+        session.proxies = {'http': PROXY_URL, 'https': PROXY_URL}
+        session.verify = False
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    })
+    return session
 
 
 def fetch_analyst_data(symbol):
-    """Fetches analyst data using direct Yahoo API through ScraperAPI."""
-    # Yahoo Finance v10 quoteSummary with needed modules
-    modules = 'assetProfile,financialData,defaultKeyStatistics,summaryDetail,recommendationTrend,summaryProfile,price'
-    url = f'https://query1.finance.yahoo.com/v10/finance/quoteSummary/{symbol}?modules={modules}'
+    """Fetches analyst data using yfinance Ticker via ScraperAPI proxy."""
+    session = _make_yf_session()
+    t = yf.Ticker(symbol, session=session)
+    info = t.info
 
-    data = fetch_via_scraperapi(url)
-    result = data.get('quoteSummary', {}).get('result', [])
-    if not result:
-        return {'error': 'No data', 'symbol': symbol}
-
-    summary = result[0]
-    key_stats = summary.get('defaultKeyStatistics', {})
-    fin_data = summary.get('financialData', {})
-    detail = summary.get('summaryDetail', {})
-    rec_trend_data = summary.get('recommendationTrend', {})
-    price_data = summary.get('price', {})
-    profile = summary.get('summaryProfile', {})
-
-    def raw(obj, key, default=0):
-        val = obj.get(key, {})
-        if isinstance(val, dict):
-            return val.get('raw', default)
-        return val if val is not None else default
+    if not info or len(info) < 5:
+        raise Exception('Empty info response from yfinance')
 
     rec_trend = []
-    for period in rec_trend_data.get('trend', []):
-        rec_trend.append({
-            'period': period.get('period', ''),
-            'strongBuy': period.get('strongBuy', 0) or 0,
-            'buy': period.get('buy', 0) or 0,
-            'hold': period.get('hold', 0) or 0,
-            'sell': period.get('sell', 0) or 0,
-            'strongSell': period.get('strongSell', 0) or 0,
-        })
-
-    # Recommendation key mapping from recommendationMean
-    rec_mean = raw(fin_data, 'recommendationMean', 0)
-    if rec_mean == 0:
-        rec_key = 'none'
-    elif rec_mean <= 1.5:
-        rec_key = 'strong_buy'
-    elif rec_mean <= 2.5:
-        rec_key = 'buy'
-    elif rec_mean <= 3.5:
-        rec_key = 'hold'
-    elif rec_mean <= 4.5:
-        rec_key = 'sell'
-    else:
-        rec_key = 'strong_sell'
+    try:
+        recs = t.recommendations
+        if recs is not None and not recs.empty:
+            for _, row in recs.iterrows():
+                rec_trend.append({
+                    'period': str(row.get('period', '')),
+                    'strongBuy': int(row.get('strongBuy', 0) or 0),
+                    'buy': int(row.get('buy', 0) or 0),
+                    'hold': int(row.get('hold', 0) or 0),
+                    'sell': int(row.get('sell', 0) or 0),
+                    'strongSell': int(row.get('strongSell', 0) or 0),
+                })
+    except Exception:
+        pass
 
     return {
         'symbol': symbol,
-        'targetMeanPrice': raw(fin_data, 'targetMeanPrice', 0),
-        'targetHighPrice': raw(fin_data, 'targetHighPrice', 0),
-        'targetLowPrice': raw(fin_data, 'targetLowPrice', 0),
-        'targetMedianPrice': raw(fin_data, 'targetMedianPrice', 0),
-        'numberOfAnalystOpinions': raw(fin_data, 'numberOfAnalystOpinions', 0),
-        'recommendationMean': rec_mean,
-        'recommendationKey': fin_data.get('recommendationKey', rec_key),
+        'targetMeanPrice': safe_get(info, 'targetMeanPrice', 0),
+        'targetHighPrice': safe_get(info, 'targetHighPrice', 0),
+        'targetLowPrice': safe_get(info, 'targetLowPrice', 0),
+        'targetMedianPrice': safe_get(info, 'targetMedianPrice', 0),
+        'numberOfAnalystOpinions': safe_get(info, 'numberOfAnalystOpinions', 0),
+        'recommendationMean': safe_get(info, 'recommendationMean', 0),
+        'recommendationKey': safe_get(info, 'recommendationKey', 'none'),
 
-        'trailingPE': raw(detail, 'trailingPE', 0),
-        'forwardPE': raw(detail, 'forwardPE', 0) or raw(key_stats, 'forwardPE', 0),
-        'priceToBook': raw(key_stats, 'priceToBook', 0),
-        'pegRatio': raw(key_stats, 'pegRatio', 0),
+        'trailingPE': safe_get(info, 'trailingPE', 0),
+        'forwardPE': safe_get(info, 'forwardPE', 0),
+        'priceToBook': safe_get(info, 'priceToBook', 0),
+        'pegRatio': safe_get(info, 'pegRatio', 0),
 
-        'earningsGrowth': raw(fin_data, 'earningsGrowth', 0),
-        'revenueGrowth': raw(fin_data, 'revenueGrowth', 0),
-        'profitMargins': raw(fin_data, 'profitMargins', 0),
-        'returnOnEquity': raw(fin_data, 'returnOnEquity', 0),
+        'earningsGrowth': safe_get(info, 'earningsGrowth', 0),
+        'revenueGrowth': safe_get(info, 'revenueGrowth', 0),
+        'profitMargins': safe_get(info, 'profitMargins', 0),
+        'returnOnEquity': safe_get(info, 'returnOnEquity', 0),
 
-        'marketCap': raw(price_data, 'marketCap', 0) or raw(detail, 'marketCap', 0),
-        'beta': raw(key_stats, 'beta', 0) or raw(detail, 'beta', 0),
-        'trailingEps': raw(key_stats, 'trailingEps', 0),
-        'forwardEps': raw(key_stats, 'forwardEps', 0),
-        'bookValue': raw(key_stats, 'bookValue', 0),
+        'marketCap': safe_get(info, 'marketCap', 0),
+        'beta': safe_get(info, 'beta', 0),
+        'trailingEps': safe_get(info, 'trailingEps', 0),
+        'forwardEps': safe_get(info, 'forwardEps', 0),
+        'bookValue': safe_get(info, 'bookValue', 0),
 
-        'dividendYield': raw(detail, 'dividendYield', 0),
-        'payoutRatio': raw(detail, 'payoutRatio', 0),
+        'dividendYield': safe_get(info, 'dividendYield', 0),
+        'payoutRatio': safe_get(info, 'payoutRatio', 0),
 
-        'fiftyTwoWeekHigh': raw(detail, 'fiftyTwoWeekHigh', 0) or raw(key_stats, 'fiftyTwoWeekHigh', 0),
-        'fiftyTwoWeekLow': raw(detail, 'fiftyTwoWeekLow', 0) or raw(key_stats, 'fiftyTwoWeekLow', 0),
+        'fiftyTwoWeekHigh': safe_get(info, 'fiftyTwoWeekHigh', 0),
+        'fiftyTwoWeekLow': safe_get(info, 'fiftyTwoWeekLow', 0),
 
-        'sector': profile.get('sector', ''),
-        'industry': profile.get('industry', ''),
-        'longName': price_data.get('longName') or price_data.get('shortName') or symbol,
+        'sector': safe_get(info, 'sector', ''),
+        'industry': safe_get(info, 'industry', ''),
+        'longName': safe_get(info, 'longName', symbol),
 
         'recommendationTrend': rec_trend,
     }
