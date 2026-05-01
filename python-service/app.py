@@ -2,13 +2,14 @@
 Python microservice that wraps yfinance to provide real analyst
 recommendations, target prices, and fundamentals for Indian stocks.
 
-Uses ScraperAPI in PROXY mode to route yfinance requests through residential IPs.
-yfinance handles crumb authentication automatically, which works over proxy.
+Uses curl_cffi session with ScraperAPI proxy mode to bypass Yahoo's
+TLS fingerprinting + IP blocks. This is the combination that works:
+- curl_cffi impersonates a real browser's TLS fingerprint
+- ScraperAPI routes through residential IPs
 """
 
 from flask import Flask, jsonify
 import yfinance as yf
-import requests
 import time
 import random
 import os
@@ -24,12 +25,11 @@ SCRAPERAPI_KEY = os.environ.get('SCRAPERAPI_KEY', '').strip()
 USE_SCRAPERAPI = bool(SCRAPERAPI_KEY)
 
 if USE_SCRAPERAPI:
-    # ScraperAPI proxy mode — all requests go through residential IPs
     PROXY_URL = f"http://scraperapi:{SCRAPERAPI_KEY}@proxy-server.scraperapi.com:8001"
     print(f"✓ ScraperAPI proxy configured")
 else:
     PROXY_URL = None
-    print("⚠ SCRAPERAPI_KEY not set — direct requests (may be rate-limited)")
+    print("⚠ SCRAPERAPI_KEY not set — requests may be rate-limited")
 
 
 # ── Simple in-memory cache ──────────────────────────────────
@@ -70,21 +70,30 @@ def safe_get(info, key, default=None):
 
 
 def _make_yf_session():
-    """Create a requests.Session that yfinance will use."""
-    session = requests.Session()
+    """Create a curl_cffi session (required by yfinance) with ScraperAPI proxy."""
+    from curl_cffi import requests as cffi_requests
+
+    # curl_cffi impersonates Chrome's TLS fingerprint
+    session = cffi_requests.Session(impersonate="chrome124")
+
     if USE_SCRAPERAPI:
-        session.proxies = {'http': PROXY_URL, 'https': PROXY_URL}
+        session.proxies = {
+            'http': PROXY_URL,
+            'https': PROXY_URL,
+        }
         session.verify = False
-    session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    })
+
     return session
 
 
 def fetch_analyst_data(symbol):
-    """Fetches analyst data using yfinance Ticker via ScraperAPI proxy."""
-    session = _make_yf_session()
-    t = yf.Ticker(symbol, session=session)
+    """Fetches analyst data using yfinance Ticker via curl_cffi + ScraperAPI."""
+    if USE_SCRAPERAPI:
+        session = _make_yf_session()
+        t = yf.Ticker(symbol, session=session)
+    else:
+        t = yf.Ticker(symbol)
+
     info = t.info
 
     if not info or len(info) < 5:
