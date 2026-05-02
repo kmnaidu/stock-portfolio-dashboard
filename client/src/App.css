@@ -552,6 +552,38 @@ main {
 .upside-pos { color: var(--green-strong); }
 .upside-neg { color: var(--red-strong); }
 
+/* Contradiction warning banner */
+.analyst-contradiction-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #92400e;
+}
+[data-theme="dark"] .analyst-contradiction-banner {
+  background: #422006;
+  border-color: #b45309;
+  color: #fde68a;
+}
+.analyst-contradiction-bullish {
+  background: #d1fae5;
+  border-color: #10b981;
+  color: #065f46;
+}
+[data-theme="dark"] .analyst-contradiction-bullish {
+  background: #064e3b;
+  border-color: #059669;
+  color: #a7f3d0;
+}
+.contradiction-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 0.1rem; }
+.contradiction-text strong { font-weight: 700; }
+
 .analyst-section { margin-bottom: 1rem; }
 
 .analyst-section-title {

@@ -73,11 +73,6 @@ const POPULAR_STOCKS = [
   { symbol: 'KPITTECH.NS', name: 'KPIT Technologies', sector: 'IT' },
   { symbol: 'NIFTYBEES.NS', name: 'Nippon India Nifty BeES', sector: 'ETF' },
   { symbol: 'GOLDBEES.NS', name: 'Nippon India Gold BeES', sector: 'ETF' },
-  { symbol: 'SILVERBEES.NS', name: 'Nippon India Silver BeES', sector: 'ETF' },
-  { symbol: 'JUNIORBEES.NS', name: 'Nippon India Junior BeES', sector: 'ETF' },
-  { symbol: 'PHARMABEES.NS', name: 'Nippon India Pharma BeES', sector: 'ETF' },
-  { symbol: 'ITBEES.NS', name: 'Nippon India IT BeES', sector: 'ETF' },
-  { symbol: 'BANKBEES.NS', name: 'Nippon India Bank BeES', sector: 'ETF' },
 ];
 
 interface Props {
@@ -179,7 +174,7 @@ export default function WatchlistManager({ isOpen, onClose }: Props) {
   };
 
   const handleReset = () => {
-    if (confirm('Reset watchlist to the default 32 stocks? Your current custom list will be replaced.')) {
+    if (confirm('Reset watchlist to the default 28 stocks? Your current custom list will be replaced.')) {
       resetToDefault();
       showMessage('Watchlist reset to default', 'success');
     }

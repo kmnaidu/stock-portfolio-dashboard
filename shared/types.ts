@@ -128,13 +128,9 @@ export const SUPPORTED_SECURITIES = [
   // Hospitality
   { symbol: 'INDHOTEL.NS', name: 'Indian Hotels (Taj)', sector: 'Hospitality' },
 
-  // ETFs & Finance
+  // ETFs
   { symbol: 'NIFTYBEES.NS', name: 'Nippon India Nifty BeES', sector: 'ETF' },
   { symbol: 'GOLDBEES.NS', name: 'Nippon India Gold BeES', sector: 'ETF' },
-  { symbol: 'SILVERBEES.NS', name: 'Nippon India Silver BeES', sector: 'ETF' },
-  { symbol: 'JUNIORBEES.NS', name: 'Nippon India Junior BeES', sector: 'ETF' },
-  { symbol: 'PHARMABEES.NS', name: 'Nippon India Pharma BeES', sector: 'ETF' },
-  { symbol: 'ITBEES.NS', name: 'Nippon India IT BeES', sector: 'ETF' },
 ] as const;
 
 export type SupportedSymbol = typeof SUPPORTED_SECURITIES[number]['symbol'];
