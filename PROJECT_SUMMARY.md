@@ -289,7 +289,7 @@ Each stock's detail page includes:
 - Add any NSE/BSE stock (auto-appends `.NS` if needed)
 - Search from 70+ popular Indian stocks
 - Remove stocks from watchlist
-- Reset to default 32 stocks
+- Reset to default 28 stocks
 - All changes sync immediately with dashboard
 
 ### 7. User Experience

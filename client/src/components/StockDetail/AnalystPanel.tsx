@@ -133,6 +133,13 @@ export default function AnalystPanel({ symbol, currentPrice }: Props) {
     ? latestTrend.strongBuy + latestTrend.buy + latestTrend.hold + latestTrend.sell + latestTrend.strongSell
     : 0;
 
+  // Detect contradiction: bullish rating but negative target, or bearish rating but positive target
+  const isBullishRating = ['strong_buy', 'buy'].includes(data.recommendationKey);
+  const isBearishRating = ['sell', 'strong_sell'].includes(data.recommendationKey);
+  const hasContradiction = hasTargets && (
+    (isBullishRating && upside < -5) || (isBearishRating && upside > 10)
+  );
+
   return (
     <div className="analyst-panel">
       <div className="analyst-header-row">
@@ -166,6 +173,28 @@ export default function AnalystPanel({ symbol, currentPrice }: Props) {
               <span className="analyst-sublabel">Median: {formatINR(data.targetMedianPrice)}</span>
             </div>
           </div>
+
+          {/* Contradiction Warning */}
+          {hasContradiction && isBullishRating && upside < -5 && (
+            <div className="analyst-contradiction-banner">
+              <span className="contradiction-icon">⚠️</span>
+              <div className="contradiction-text">
+                <strong>Rating vs Target Mismatch:</strong> Analysts rate this "{recLabel.text}" but the mean target (
+                {formatINR(data.targetMeanPrice)}) is {Math.abs(upside).toFixed(1)}% below the current price (
+                {formatINR(currentPrice)}). This usually means the stock price has rallied past analyst targets and ratings haven't been updated yet. <strong>Rely on the target price, not the rating label.</strong>
+              </div>
+            </div>
+          )}
+          {hasContradiction && isBearishRating && upside > 10 && (
+            <div className="analyst-contradiction-banner analyst-contradiction-bullish">
+              <span className="contradiction-icon">⚠️</span>
+              <div className="contradiction-text">
+                <strong>Rating vs Target Mismatch:</strong> Analysts rate this "{recLabel.text}" but the mean target (
+                {formatINR(data.targetMeanPrice)}) is {upside.toFixed(1)}% above the current price (
+                {formatINR(currentPrice)}). Ratings may be stale. <strong>Rely on the target price, not the rating label.</strong>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

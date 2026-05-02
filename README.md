@@ -166,7 +166,7 @@ On Vercel (frontend):
 
 ## 📋 Supported Stocks (Default Watchlist)
 
-The dashboard ships with 32 pre-configured Indian stocks across sectors:
+The dashboard ships with 28 pre-configured Indian stocks across sectors:
 
 **Banking:** HDFC Bank, SBI, ICICI Bank, City Union Bank
 **IT:** TCS, Infosys, KPIT Technologies
@@ -179,7 +179,7 @@ The dashboard ships with 32 pre-configured Indian stocks across sectors:
 **Metals:** National Aluminium
 **Transport/Service:** IndiGo, Eternal (Zomato), Delhivery
 **Hospitality:** Indian Hotels (Taj)
-**ETFs:** NiftyBees, GoldBees, SilverBees, JuniorBees, PharmaBees, ITBees
+**ETFs:** NiftyBees, GoldBees
 
 Users can add any additional NSE/BSE stock via the Watchlist Manager.
 
