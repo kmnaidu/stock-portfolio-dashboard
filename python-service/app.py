@@ -8,11 +8,12 @@ TLS fingerprinting + IP blocks. This is the combination that works:
 - ScraperAPI routes through residential IPs
 """
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 import yfinance as yf
 import time
 import random
 import os
+import threading
 import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -157,10 +158,12 @@ def fetch_analyst_data(symbol):
 
 @app.route('/health')
 def health():
+    cached_count = sum(1 for k, (d, exp) in _cache.items() if time.time() < exp and 'error' not in d)
     return jsonify({
         'status': 'ok',
         'service': 'yfinance-python',
         'scraperapi': USE_SCRAPERAPI,
+        'cached_stocks': cached_count,
     })
 
 
@@ -168,6 +171,93 @@ def health():
 def analyst_data(symbol):
     data = _cached_or_fetch(f'analyst:{symbol}', lambda: fetch_analyst_data(symbol))
     return jsonify(data)
+
+
+# ── Default stocks for pre-warming ──────────────────────────
+DEFAULT_STOCKS = [
+    'RELIANCE.NS', 'ADANIPOWER.NS', 'TATAPOWER.NS', 'HDFCBANK.NS',
+    'SBIN.NS', 'ICICIBANK.NS', 'CUB.NS', 'TCS.NS', 'INFY.NS',
+    'KPITTECH.NS', 'M&M.NS', 'TVSMOTOR.NS', 'TATAMOTORS.NS',
+    'HAL.NS', 'BEL.NS', 'LT.NS', 'BHARTIARTL.NS', 'DRREDDY.NS',
+    'BIOCON.NS', 'ITC.NS', 'DABUR.NS', 'NATIONALUM.NS', 'INDIGO.NS',
+    'ETERNAL.NS', 'DELHIVERY.NS', 'INDHOTEL.NS', 'NIFTYBEES.NS',
+    'GOLDBEES.NS',
+]
+
+
+@app.route('/prewarm', methods=['POST', 'GET'])
+def prewarm():
+    """Pre-warm cache for all default stocks. Call from laptop or cron."""
+    results = {'success': [], 'failed': [], 'cached': []}
+
+    for symbol in DEFAULT_STOCKS:
+        key = f'analyst:{symbol}'
+        now = time.time()
+
+        # Skip if already cached and not expiring soon (within 2 hours)
+        if key in _cache:
+            data, expiry = _cache[key]
+            if now < expiry - 7200 and 'error' not in data:
+                results['cached'].append(symbol)
+                continue
+
+        data = _cached_or_fetch(key, lambda s=symbol: fetch_analyst_data(s))
+        if 'error' in data:
+            results['failed'].append(symbol)
+        else:
+            results['success'].append(symbol)
+
+        # Delay between calls to avoid rate limiting
+        time.sleep(3)
+
+    return jsonify({
+        'message': 'Pre-warm complete',
+        'success': len(results['success']),
+        'failed': len(results['failed']),
+        'already_cached': len(results['cached']),
+        'details': results,
+    })
+
+
+# ── Background auto-refresh (runs on production with ScraperAPI) ─
+def _background_refresh():
+    """Every 12 hours, try to refresh cache for stocks that are expiring."""
+    while True:
+        time.sleep(12 * 60 * 60)  # Wait 12 hours
+        print(f"[Auto-refresh] Starting background cache refresh at {time.strftime('%H:%M:%S')}")
+        refreshed = 0
+        failed = 0
+
+        for symbol in DEFAULT_STOCKS:
+            key = f'analyst:{symbol}'
+            now = time.time()
+
+            # Only refresh if cache is expired or expiring within 2 hours
+            if key in _cache:
+                data, expiry = _cache[key]
+                if now < expiry - 7200 and 'error' not in data:
+                    continue  # Still fresh, skip
+
+            try:
+                data = fetch_analyst_data(symbol)
+                if 'error' not in data:
+                    _cache[key] = (data, now + CACHE_TTL_SECONDS)
+                    refreshed += 1
+                else:
+                    failed += 1
+            except Exception:
+                failed += 1
+
+            time.sleep(5)  # Be gentle with ScraperAPI
+
+        print(f"[Auto-refresh] Done: {refreshed} refreshed, {failed} failed")
+
+
+# Start background thread only in production (when ScraperAPI is configured)
+if USE_SCRAPERAPI:
+    _refresh_thread = threading.Thread(target=_background_refresh, daemon=True)
+    _refresh_thread.start()
+    print("✓ Background auto-refresh thread started (every 12 hours)")
 
 
 if __name__ == '__main__':

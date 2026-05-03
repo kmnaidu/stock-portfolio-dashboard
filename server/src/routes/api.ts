@@ -415,5 +415,39 @@ export function createApiRouter(services: {
     }
   });
 
+  // POST /api/cache-analyst — inject pre-warmed analyst data into Node.js cache
+  // Called by the prewarm script running on your laptop
+  router.post('/cache-analyst', (req: Request, res: Response) => {
+    const body = req.body;
+
+    if (!body || !Array.isArray(body.stocks)) {
+      res.status(400).json({ error: 'Expected { stocks: [...] }' });
+      return;
+    }
+
+    const TTL_PREWARM = 24 * 60 * 60; // 24 hours — longer TTL for pre-warmed data
+    let cached = 0;
+    let skipped = 0;
+
+    for (const stock of body.stocks) {
+      if (!stock.symbol || !stock.data || stock.data.error) {
+        skipped++;
+        continue;
+      }
+      services.cache.set(`analyst:${stock.symbol}`, stock.data, TTL_PREWARM);
+      cached++;
+    }
+
+    // Also invalidate top-picks cache so it rebuilds with fresh analyst data
+    services.cache.invalidate(`top-picks:${SUPPORTED_SECURITIES.map(s => s.symbol).sort().join(',')}`);
+
+    res.json({
+      message: 'Cache populated',
+      cached,
+      skipped,
+      ttlHours: 24,
+    });
+  });
+
   return router;
 }
