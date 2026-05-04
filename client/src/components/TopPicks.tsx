@@ -51,6 +51,9 @@ export default function TopPicks() {
   const [data, setData] = useState<TopPicksResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [showModerate, setShowModerate] = useState(false);
+  const [showLow, setShowLow] = useState(false);
+  const [showNoAnalyst, setShowNoAnalyst] = useState(false);
   const navigate = useNavigate();
   const { symbols } = useWatchlist();
   const symbolsKey = symbols.join(',');
@@ -123,64 +126,97 @@ export default function TopPicks() {
 
       {moderate.length > 0 && (
         <>
-          <h4 className="tp-subtitle">Moderate Upside (10-20%)</h4>
-          <div className="tp-cards">
-            {moderate.map((item) => (
-              <PickCard key={item.symbol} item={item} navigate={navigate} />
-            ))}
-          </div>
+          <h4
+            className="tp-subtitle tp-collapsible"
+            onClick={() => setShowModerate(!showModerate)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && setShowModerate(!showModerate)}
+          >
+            <span className={`tp-collapse-arrow ${showModerate ? 'tp-arrow-open' : ''}`}>▶</span>
+            Moderate Upside (10-20%) — {moderate.length} stocks
+          </h4>
+          {showModerate && (
+            <div className="tp-cards">
+              {moderate.map((item) => (
+                <PickCard key={item.symbol} item={item} navigate={navigate} />
+              ))}
+            </div>
+          )}
         </>
       )}
 
       {low.length > 0 && (
         <>
-          <h4 className="tp-subtitle">Limited Upside (&lt; 10%)</h4>
-          <div className="tp-others-list">
-            {low.map((item) => (
-              <div
-                key={item.symbol}
-                className="tp-other-row"
-                onClick={() => navigate(`/stock/${item.symbol}`)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && navigate(`/stock/${item.symbol}`)}
-              >
-                <span className="tp-other-name">{item.name}</span>
-                <span className="tp-other-sector">{item.sector}</span>
-                <span className="tp-other-price">{formatINR(item.currentPrice)}</span>
-                <span className={`tp-other-upside ${(item.upsidePercent ?? 0) < 0 ? 'tp-negative' : ''}`}>
-                  {(item.upsidePercent ?? 0) >= 0 ? '+' : ''}{(item.upsidePercent ?? 0).toFixed(1)}%
-                </span>
-                {item.recommendationKey && (
-                  <span className={`tp-badge ${recKeyLabel(item.recommendationKey).className}`}>
-                    {recKeyLabel(item.recommendationKey).text}
+          <h4
+            className="tp-subtitle tp-collapsible"
+            onClick={() => setShowLow(!showLow)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && setShowLow(!showLow)}
+          >
+            <span className={`tp-collapse-arrow ${showLow ? 'tp-arrow-open' : ''}`}>▶</span>
+            Limited Upside (&lt; 10%) — {low.length} stocks
+          </h4>
+          {showLow && (
+            <div className="tp-others-list">
+              {low.map((item) => (
+                <div
+                  key={item.symbol}
+                  className="tp-other-row"
+                  onClick={() => navigate(`/stock/${item.symbol}`)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && navigate(`/stock/${item.symbol}`)}
+                >
+                  <span className="tp-other-name">{item.name}</span>
+                  <span className="tp-other-sector">{item.sector}</span>
+                  <span className="tp-other-price">{formatINR(item.currentPrice)}</span>
+                  <span className={`tp-other-upside ${(item.upsidePercent ?? 0) < 0 ? 'tp-negative' : ''}`}>
+                    {(item.upsidePercent ?? 0) >= 0 ? '+' : ''}{(item.upsidePercent ?? 0).toFixed(1)}%
                   </span>
-                )}
-              </div>
-            ))}
-          </div>
+                  {item.recommendationKey && (
+                    <span className={`tp-badge ${recKeyLabel(item.recommendationKey).className}`}>
+                      {recKeyLabel(item.recommendationKey).text}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 
       {data.withoutAnalystData.length > 0 && (
         <>
-          <h4 className="tp-subtitle">No Analyst Coverage (ETFs & others)</h4>
-          <div className="tp-others-list">
-            {data.withoutAnalystData.map((item) => (
-              <div
-                key={item.symbol}
-                className="tp-other-row tp-no-analyst-row"
-                onClick={() => navigate(`/stock/${item.symbol}`)}
-                role="button"
-                tabIndex={0}
-              >
-                <span className="tp-other-name">{item.name}</span>
-                <span className="tp-other-sector">{item.sector}</span>
-                <span className="tp-other-price">{formatINR(item.currentPrice)}</span>
-                <span className="tp-no-analyst-text">No analyst coverage</span>
-              </div>
-            ))}
-          </div>
+          <h4
+            className="tp-subtitle tp-collapsible"
+            onClick={() => setShowNoAnalyst(!showNoAnalyst)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && setShowNoAnalyst(!showNoAnalyst)}
+          >
+            <span className={`tp-collapse-arrow ${showNoAnalyst ? 'tp-arrow-open' : ''}`}>▶</span>
+            No Analyst Coverage (ETFs & others) — {data.withoutAnalystData.length}
+          </h4>
+          {showNoAnalyst && (
+            <div className="tp-others-list">
+              {data.withoutAnalystData.map((item) => (
+                <div
+                  key={item.symbol}
+                  className="tp-other-row tp-no-analyst-row"
+                  onClick={() => navigate(`/stock/${item.symbol}`)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <span className="tp-other-name">{item.name}</span>
+                  <span className="tp-other-sector">{item.sector}</span>
+                  <span className="tp-other-price">{formatINR(item.currentPrice)}</span>
+                  <span className="tp-no-analyst-text">No analyst coverage</span>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 

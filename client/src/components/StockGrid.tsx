@@ -53,9 +53,32 @@ export default function StockGrid() {
   const { quotes } = usePortfolio();
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [showAll, setShowAll] = useState(false);
+
+  const INITIAL_COUNT = 10;
+
+  // Priority stocks always shown first in the initial view
+  const PRIORITY_SYMBOLS = [
+    'RELIANCE.NS', 'HDFCBANK.NS', 'SBIN.NS', 'HAL.NS', 'ICICIBANK.NS',
+    'DABUR.NS', 'TVSMOTOR.NS', 'TATAMOTORS.NS', 'BHARTIARTL.NS', 'INDHOTEL.NS',
+  ];
 
   const quotesArray = Array.from(quotes.values());
   const sortedQuotes = sortQuotes(quotesArray, sortField, sortDirection);
+
+  // When collapsed, show priority stocks first, then fill remaining slots
+  let visibleQuotes: QuoteData[];
+  if (showAll) {
+    visibleQuotes = sortedQuotes;
+  } else {
+    const priorityQuotes = PRIORITY_SYMBOLS
+      .map(sym => sortedQuotes.find(q => q.symbol === sym))
+      .filter((q): q is QuoteData => q !== undefined);
+    const remaining = sortedQuotes.filter(q => !PRIORITY_SYMBOLS.includes(q.symbol));
+    const fillCount = Math.max(0, INITIAL_COUNT - priorityQuotes.length);
+    visibleQuotes = [...priorityQuotes, ...remaining.slice(0, fillCount)];
+  }
+  const hasMore = sortedQuotes.length > INITIAL_COUNT;
 
   const handleSort = (field: SortField) => {
     if (field === sortField) {
@@ -98,11 +121,21 @@ export default function StockGrid() {
           </tr>
         </thead>
         <tbody>
-          {sortedQuotes.map((quote) => (
+          {visibleQuotes.map((quote) => (
             <StockRow key={quote.symbol} quote={quote} />
           ))}
         </tbody>
       </table>
+      {hasMore && (
+        <button
+          className="stock-grid-toggle"
+          onClick={() => setShowAll(!showAll)}
+        >
+          {showAll
+            ? `Show Less ▲`
+            : `Show All ${sortedQuotes.length} Stocks ▼`}
+        </button>
+      )}
     </div>
   );
 }

@@ -1,4 +1,3 @@
-import PortfolioSummary from '../components/PortfolioSummary';
 import MarketPulse from '../components/MarketPulse';
 import HoldingsSummary from '../components/HoldingsSummary';
 import TopPicks from '../components/TopPicks';
@@ -9,7 +8,6 @@ function DashboardPage() {
     <div className="dashboard-page">
       <MarketPulse />
       <HoldingsSummary />
-      <PortfolioSummary />
       <TopPicks />
       <StockGrid />
     </div>

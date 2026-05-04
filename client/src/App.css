@@ -219,6 +219,26 @@ main {
 
 .stock-grid-wrapper { overflow-x: auto; }
 
+.stock-grid-toggle {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.stock-grid-toggle:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
 .stock-grid {
   width: 100%;
   border-collapse: collapse;
@@ -690,6 +710,31 @@ main {
   font-weight: 600;
   color: var(--text-secondary);
   margin: 1rem 0 0.5rem;
+}
+
+.tp-collapsible {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.25rem;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.tp-collapsible:hover {
+  background: var(--bg-tertiary);
+}
+
+.tp-collapse-arrow {
+  font-size: 0.65rem;
+  transition: transform 0.2s;
+  color: var(--text-tertiary);
+}
+
+.tp-arrow-open {
+  transform: rotate(90deg);
 }
 
 .tp-high-subtitle { color: var(--green-strong); }
@@ -2245,3 +2290,4 @@ main {
   border-color: var(--accent);
   font-weight: 600;
 }
+
