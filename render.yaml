@@ -28,5 +28,5 @@ services:
           name: stock-python
           property: hostport
       - key: CORS_ORIGIN
-        value: "*"
+        value: "https://stock-portfolio-analyzer-ten.vercel.app"
     plan: free

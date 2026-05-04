@@ -114,7 +114,7 @@ A real-time Indian stock market portfolio dashboard with live prices, institutio
 
 On `stock-api` service:
 - `PYTHON_SERVICE_URL` = `https://stock-python-whf6.onrender.com`
-- `CORS_ORIGIN` = `*` (permissive for now; restrict to Vercel URL for production)
+- `CORS_ORIGIN` = `https://stock-portfolio-analyzer-ten.vercel.app`
 - `NODE_VERSION` = `20.11.0`
 
 On `stock-python` service:

@@ -13,7 +13,14 @@ const PORT = process.env.PORT || 3001;
 
 // CORS: allow local dev + configured production origin
 const corsOrigin = process.env.CORS_ORIGIN || '*';
-app.use(cors({ origin: corsOrigin === '*' ? true : corsOrigin.split(',') }));
+const allowedOrigins = corsOrigin === '*'
+  ? true
+  : [
+      ...corsOrigin.split(',').map(o => o.trim()),
+      'http://localhost:5173',   // Vite dev server
+      'http://localhost:3000',   // Alternate dev port
+    ];
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 // Create service instances
