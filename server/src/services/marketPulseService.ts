@@ -59,12 +59,28 @@ async function fetchYahooQuote(symbol: string): Promise<{ price: number; prevClo
     const res = await fetch(url, { headers: YF_HEADERS, signal: AbortSignal.timeout(8000) });
     if (!res.ok) return null;
     const json = (await res.json()) as any;
-    const meta = json?.chart?.result?.[0]?.meta;
+    const result = json?.chart?.result?.[0];
+    const meta = result?.meta;
     if (!meta) return null;
-    return {
-      price: meta.regularMarketPrice ?? 0,
-      prevClose: meta.chartPreviousClose ?? meta.previousClose ?? 0,
-    };
+
+    const currentPrice = meta.regularMarketPrice ?? 0;
+
+    // Yahoo's chartPreviousClose returns value from ~5 days ago (including weekends/holidays).
+    // Use the actual previous trading day's close from the daily bars array.
+    // The last non-null close is today; the one before that is yesterday's close.
+    const closes: (number | null)[] = result?.indicators?.quote?.[0]?.close ?? [];
+    const nonNullCloses = closes.filter((c): c is number => c != null);
+
+    let prevClose = 0;
+    if (nonNullCloses.length >= 2) {
+      // Second-to-last non-null close is the actual previous trading day
+      prevClose = nonNullCloses[nonNullCloses.length - 2];
+    } else {
+      // Fallback if we don't have enough data
+      prevClose = meta.chartPreviousClose ?? meta.previousClose ?? 0;
+    }
+
+    return { price: currentPrice, prevClose };
   } catch {
     return null;
   }
@@ -266,7 +282,7 @@ export function createMarketPulseService(cache: CacheService): MarketPulseServic
         fiiDii,
       };
 
-      cache.set('market-pulse', result, 900); // 15 min cache
+      cache.set('market-pulse', result, 30); // 30 sec cache — frequent refresh for live indices
       return result;
     },
   };

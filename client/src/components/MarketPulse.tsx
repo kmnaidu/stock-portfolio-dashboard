@@ -77,8 +77,8 @@ export default function MarketPulse() {
       finally { if (!cancelled) setLoading(false); }
     }
     fetchData();
-    // Refresh every 15 minutes
-    const id = setInterval(fetchData, 15 * 60 * 1000);
+    // Refresh every 30 seconds for fresh index + FX values
+    const id = setInterval(fetchData, 30 * 1000);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
