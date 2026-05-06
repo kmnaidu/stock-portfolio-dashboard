@@ -13,6 +13,7 @@ import { computeSupportResistance } from '../services/supportResistanceService.j
 import { computeGrowthPotential } from '../services/growthPotentialService.js';
 import type { AnalystDataService } from '../services/analystDataService.js';
 import type { MarketPulseService } from '../services/marketPulseService.js';
+import type { AIAnalysisService } from '../services/aiAnalysisService.js';
 
 const VALID_RANGES = new Set<string>(['1d', '1w', '1mo', '3mo', '6mo', '1y']);
 
@@ -48,9 +49,10 @@ export function createApiRouter(services: {
   predictionEngine: PredictionEngine;
   analystDataService: AnalystDataService;
   marketPulseService: MarketPulseService;
+  aiAnalysisService: AIAnalysisService;
   cache: CacheService;
 }): Router {
-  const { yfService, marketStatusService, predictionEngine, analystDataService, marketPulseService } = services;
+  const { yfService, marketStatusService, predictionEngine, analystDataService, marketPulseService, aiAnalysisService } = services;
   const router = Router();
 
   // GET /api/health
@@ -447,6 +449,92 @@ export function createApiRouter(services: {
       skipped,
       ttlHours: 24,
     });
+  });
+
+  // GET /api/ai-analysis/:symbol — AI-powered stock analysis using Gemini
+  router.get('/ai-analysis/:symbol', async (req: Request, res: Response) => {
+    const symbol = req.params.symbol as string;
+    if (!validateSymbol(symbol, res)) return;
+
+    if (!aiAnalysisService.isAvailable()) {
+      res.status(503).json({ error: 'AI_UNAVAILABLE', message: 'Gemini API key not configured' });
+      return;
+    }
+
+    try {
+      // Gather all existing data (the RETRIEVAL step of RAG)
+      const [analystData, srData, marketPulse, quotes] = await Promise.all([
+        analystDataService.getAnalystData(symbol),
+        (async () => {
+          try {
+            const hist = await yfService.getHistorical(symbol, '1y');
+            if (hist.length < 30) return null;
+            const closes = hist.map(d => d.close).filter(p => p > 0);
+            const highs = hist.map(d => d.high).filter(p => p > 0);
+            const lows = hist.map(d => d.low).filter(p => p > 0);
+            const { computeSupportResistance: computeSR } = await import('../services/supportResistanceService.js');
+            return computeSR(symbol, closes, highs, lows);
+          } catch { return null; }
+        })(),
+        (async () => { try { return await marketPulseService.getPulse(); } catch { return null; } })(),
+        yfService.getQuotes([symbol]),
+      ]);
+
+      const currentPrice = quotes[0]?.price ?? 0;
+      const stockName = quotes[0]?.shortName ?? symbol.replace('.NS', '');
+
+      // Build input for AI (combining all retrieved data)
+      const input = {
+        symbol,
+        stockName,
+        currentPrice,
+        // Analyst
+        analystCount: analystData?.numberOfAnalystOpinions,
+        consensusRating: analystData?.recommendationKey,
+        targetMeanPrice: analystData?.targetMeanPrice,
+        targetHighPrice: analystData?.targetHighPrice,
+        targetLowPrice: analystData?.targetLowPrice,
+        upsidePercent: analystData && currentPrice > 0
+          ? ((analystData.targetMeanPrice - currentPrice) / currentPrice) * 100
+          : undefined,
+        trailingPE: analystData?.trailingPE,
+        forwardPE: analystData?.forwardPE,
+        pegRatio: analystData?.pegRatio,
+        revenueGrowth: analystData?.revenueGrowth,
+        earningsGrowth: analystData?.earningsGrowth,
+        profitMargins: analystData?.profitMargins,
+        // Technicals
+        rsi14: srData?.rsi14,
+        macdSignal: srData?.macdSignal,
+        sma20: srData?.sma20,
+        sma50: srData?.sma50,
+        sma200: srData?.sma200,
+        support1: srData?.support1,
+        resistance1: srData?.resistance1,
+        buyRangeLow: srData?.buyRangeLow,
+        buyRangeHigh: srData?.buyRangeHigh,
+        verdict: srData?.verdict,
+        // Market
+        niftyChange: marketPulse?.indicators?.nifty50?.changePercent,
+        fiiSentiment: marketPulse?.fiiDii?.fiiSentiment,
+        overallMarketSentiment: marketPulse?.overallSentiment,
+      };
+
+      // GENERATE analysis using LLM
+      const analysis = await aiAnalysisService.generateAnalysis(input);
+      if (!analysis) {
+        res.status(503).json({ error: 'AI_GENERATION_FAILED', symbol });
+        return;
+      }
+
+      res.json(analysis);
+    } catch (err) {
+      res.status(503).json({
+        error: 'AI_ANALYSIS_FAILED',
+        symbol,
+        message: err instanceof Error ? err.message : 'Unknown error',
+      });
+    }
   });
 
   return router;

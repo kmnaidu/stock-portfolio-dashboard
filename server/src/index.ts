@@ -6,6 +6,7 @@ import { createMarketStatusService } from './services/marketStatusService.js';
 import { createPredictionEngine } from './services/predictionEngine.js';
 import { createAnalystDataService } from './services/analystDataService.js';
 import { createMarketPulseService } from './services/marketPulseService.js';
+import { createAIAnalysisService } from './services/aiAnalysisService.js';
 import { createApiRouter } from './routes/api.js';
 
 const app = express();
@@ -30,6 +31,7 @@ const marketStatusService = createMarketStatusService();
 const predictionEngine = createPredictionEngine(cache);
 const analystDataService = createAnalystDataService(cache);
 const marketPulseService = createMarketPulseService(cache);
+const aiAnalysisService = createAIAnalysisService(cache);
 
 // Check Python service availability on startup
 analystDataService.isAvailable().then((available) => {
@@ -48,6 +50,7 @@ const apiRouter = createApiRouter({
   predictionEngine,
   analystDataService,
   marketPulseService,
+  aiAnalysisService,
   cache,
 });
 app.use('/api', apiRouter);
