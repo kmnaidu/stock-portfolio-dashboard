@@ -417,6 +417,66 @@ export function createApiRouter(services: {
     }
   });
 
+  // GET /api/global-markets — major global indices
+  router.get('/global-markets', async (_req: Request, res: Response) => {
+    const cacheKey = 'global-markets';
+    const cached = services.cache.get<any>(cacheKey);
+    if (cached) { res.json(cached); return; }
+
+    const GLOBAL_INDICES = [
+      { symbol: '^GSPC', name: 'S&P 500', region: 'US', flag: '🇺🇸' },
+      { symbol: '^IXIC', name: 'NASDAQ', region: 'US', flag: '🇺🇸' },
+      { symbol: '^DJI', name: 'Dow Jones', region: 'US', flag: '🇺🇸' },
+      { symbol: '^N225', name: 'Nikkei 225', region: 'Japan', flag: '🇯🇵' },
+      { symbol: '^HSI', name: 'Hang Seng', region: 'Hong Kong', flag: '🇭🇰' },
+      { symbol: '^FTSE', name: 'FTSE 100', region: 'UK', flag: '🇬🇧' },
+    ];
+
+    try {
+      const indices = [];
+      for (const idx of GLOBAL_INDICES) {
+        try {
+          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(idx.symbol)}?range=5d&interval=1d`;
+          const fetchRes = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            signal: AbortSignal.timeout(8000),
+          });
+          if (!fetchRes.ok) continue;
+          const json = (await fetchRes.json()) as any;
+          const result = json?.chart?.result?.[0];
+          const meta = result?.meta;
+          if (!meta) continue;
+
+          const price = meta.regularMarketPrice ?? 0;
+          const closes: (number | null)[] = result?.indicators?.quote?.[0]?.close ?? [];
+          const nonNull = closes.filter((c): c is number => c != null);
+          const prevClose = nonNull.length >= 2 ? nonNull[nonNull.length - 2] : (meta.chartPreviousClose ?? price);
+
+          const change = price - prevClose;
+          const changePercent = prevClose !== 0 ? (change / prevClose) * 100 : 0;
+          const direction = Math.abs(changePercent) < 0.05 ? 'flat' : (change > 0 ? 'up' : 'down');
+
+          indices.push({
+            symbol: idx.symbol,
+            name: idx.name,
+            region: idx.region,
+            flag: idx.flag,
+            price: Math.round(price * 100) / 100,
+            change: Math.round(change * 100) / 100,
+            changePercent: Math.round(changePercent * 100) / 100,
+            direction,
+          });
+        } catch { /* skip failed index */ }
+      }
+
+      const result = { generatedAt: new Date().toISOString(), indices };
+      services.cache.set(cacheKey, result, 60); // 60 sec cache
+      res.json(result);
+    } catch {
+      res.status(503).json({ error: 'GLOBAL_MARKETS_UNAVAILABLE' });
+    }
+  });
+
   // POST /api/cache-analyst — inject pre-warmed analyst data into Node.js cache
   // Called by the prewarm script running on your laptop
   router.post('/cache-analyst', (req: Request, res: Response) => {

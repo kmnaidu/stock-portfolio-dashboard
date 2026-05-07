@@ -1016,17 +1016,22 @@ main {
 
 .mp-indicators-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.5rem;
   margin-bottom: 1rem;
 }
 
 .mp-indicator {
-  padding: 0.75rem;
+  padding: 0.5rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg-secondary);
 }
+
+.mp-ind-label { font-size: 0.7rem; }
+.mp-value-num { font-size: 0.95rem; }
+.mp-ind-change { font-size: 0.7rem; }
+.mp-ind-rationale { font-size: 0.65rem; display: none; }
 
 .mp-indicator.mp-bullish { border-left: 3px solid var(--green); }
 .mp-indicator.mp-bearish { border-left: 3px solid var(--red); }
@@ -1645,7 +1650,7 @@ main {
   .dist-count { font-size: 1.25rem; }
   .analyst-rec-row { grid-template-columns: 1fr; }
 
-  .mp-indicators-grid { grid-template-columns: repeat(2, 1fr); }
+  .mp-indicators-grid { grid-template-columns: repeat(3, 1fr); }
   .mp-fiidii-grid { grid-template-columns: 1fr; }
   .mp-value-num { font-size: 1rem; }
 
@@ -2506,4 +2511,158 @@ main {
 .ai-model-info {
   font-size: 0.7rem;
   color: var(--text-tertiary);
+}
+
+/* ── Global Markets Panel ───────────────────────────────── */
+.gm-panel {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.gm-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+}
+
+.gm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.gm-card {
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  padding: 0.75rem;
+  border-left: 3px solid var(--border);
+  transition: transform 0.1s;
+}
+
+.gm-card:hover {
+  transform: translateY(-1px);
+}
+
+.gm-up { border-left-color: var(--green); }
+.gm-down { border-left-color: var(--red); }
+.gm-flat { border-left-color: var(--amber); }
+
+.gm-card-top {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+}
+
+.gm-flag { font-size: 1rem; }
+
+.gm-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gm-card-price {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.2rem;
+}
+
+.gm-card-change {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.gm-change-up { color: var(--green-strong); }
+.gm-change-down { color: var(--red-strong); }
+.gm-change-flat { color: var(--text-tertiary); }
+
+.gm-region {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  margin-top: 0.25rem;
+}
+
+.gm-loading {
+  text-align: center;
+  padding: 1rem;
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 600px) {
+  .gm-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Global Markets inside Market Pulse ─────────────────── */
+.mp-global-inline {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.mp-unified-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.5rem;
+}
+
+.mp-global-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.5rem;
+}
+
+.mp-global-card {
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  border-left: 3px solid var(--border);
+}
+
+.mp-global-up { border-left-color: var(--green); }
+.mp-global-down { border-left-color: var(--red); }
+.mp-global-flat { border-left-color: var(--amber); }
+
+.mp-global-top {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+
+.mp-global-flag { font-size: 0.9rem; }
+
+.mp-global-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mp-global-price {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mp-global-change {
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.mp-gchange-up { color: var(--green-strong); }
+.mp-gchange-down { color: var(--red-strong); }
+.mp-gchange-flat { color: var(--text-tertiary); }
+
+@media (max-width: 600px) {
+  .mp-global-grid { grid-template-columns: repeat(2, 1fr); }
 }

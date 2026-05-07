@@ -234,11 +234,13 @@ export function createMarketPulseService(cache: CacheService): MarketPulseServic
       if (cached) return cached;
 
       // Fetch all indicators in parallel
-      const [nifty, sensex, brent, usdInr, fiiDii] = await Promise.all([
+      const [nifty, sensex, brent, usdInr, gold, silver, fiiDii] = await Promise.all([
         fetchYahooQuote('^NSEI'),
         fetchYahooQuote('^BSESN'),
         fetchYahooQuote('BZ=F'),
         fetchYahooQuote('INR=X'),
+        fetchYahooQuote('GC=F'),
+        fetchYahooQuote('SI=F'),
         fetchFiiDii(),
       ]);
 
@@ -266,6 +268,18 @@ export function createMarketPulseService(cache: CacheService): MarketPulseServic
         rationaleDown: 'Rupee strengthening — positive for Indian assets',
       });
 
+      const goldInd = buildIndicator('Gold', 'GC=F', gold, {
+        risingIsBullish: false,
+        rationaleUp: 'Gold rising — fear in markets, safe-haven demand',
+        rationaleDown: 'Gold falling — risk appetite returning',
+      });
+
+      const silverInd = buildIndicator('Silver', 'SI=F', silver, {
+        risingIsBullish: false,
+        rationaleUp: 'Silver rising — inflation hedge demand',
+        rationaleDown: 'Silver falling — industrial demand weak',
+      });
+
       const overall = computeOverallSentiment(niftyInd, brentInd, usdInrInd, fiiDii);
 
       const result: MarketPulseData = {
@@ -278,6 +292,8 @@ export function createMarketPulseService(cache: CacheService): MarketPulseServic
           sensex: sensexInd,
           brentCrude: brentInd,
           usdInr: usdInrInd,
+          gold: goldInd,
+          silver: silverInd,
         },
         fiiDii,
       };

@@ -94,7 +94,14 @@ export default function MarketPulse() {
   if (!data) return null;
 
   const verdictClass = sentimentClass(data.overallSentiment);
-  const indicators = [data.indicators.nifty50, data.indicators.sensex, data.indicators.brentCrude, data.indicators.usdInr];
+  const indicators = [
+    data.indicators.nifty50,
+    data.indicators.sensex,
+    data.indicators.brentCrude,
+    data.indicators.usdInr,
+    data.indicators.gold,
+    data.indicators.silver,
+  ].filter(Boolean);
 
   return (
     <div className={`mp-panel mp-${data.overallSentiment}`}>
@@ -115,7 +122,7 @@ export default function MarketPulse() {
             <div className="mp-ind-label">{ind.label}</div>
             <div className="mp-ind-value">
               <span className="mp-value-num">
-                {ind.label === 'Brent Crude' ? `$${formatNumber(ind.value)}` :
+                {['Brent Crude', 'Gold', 'Silver'].includes(ind.label) ? `$${formatNumber(ind.value)}` :
                  ind.label === 'USD/INR' ? `₹${formatNumber(ind.value)}` :
                  formatNumber(ind.value)}
               </span>
@@ -131,35 +138,85 @@ export default function MarketPulse() {
 
       {data.fiiDii && (
         <div className="mp-fiidii-section">
-          <h4 className="mp-section-title">Institutional Flows ({data.fiiDii.date})</h4>
-          <div className="mp-fiidii-grid">
-            <div className={`mp-fiidii-item ${sentimentClass(data.fiiDii.fiiSentiment)}`}>
-              <div className="mp-fiidii-label">FII / FPI (Foreign)</div>
-              <div className="mp-fiidii-net">{formatCrore(data.fiiDii.fiiNet)}</div>
-              <div className="mp-fiidii-detail">
-                Buy ₹{formatNumber(data.fiiDii.fiiBuy)} Cr · Sell ₹{formatNumber(data.fiiDii.fiiSell)} Cr
+          <h4 className="mp-section-title">Institutional Flows & Global Markets</h4>
+          <div className="mp-unified-grid">
+            {/* FII/DII as compact cards */}
+            <div className={`mp-global-card mp-global-${data.fiiDii.fiiSentiment === 'bullish' ? 'up' : data.fiiDii.fiiSentiment === 'bearish' ? 'down' : 'flat'}`}>
+              <div className="mp-global-top">
+                <span className="mp-global-flag">🏦</span>
+                <span className="mp-global-name">FII/FPI</span>
               </div>
-              <div className="mp-fiidii-sentiment">
-                {data.fiiDii.fiiSentiment === 'bullish' ? '🟢 Net buying' :
-                 data.fiiDii.fiiSentiment === 'bearish' ? '🔴 Net selling' :
-                 '🟡 Neutral flow'}
-              </div>
-            </div>
-            <div className={`mp-fiidii-item ${sentimentClass(data.fiiDii.diiSentiment)}`}>
-              <div className="mp-fiidii-label">DII (Domestic)</div>
-              <div className="mp-fiidii-net">{formatCrore(data.fiiDii.diiNet)}</div>
-              <div className="mp-fiidii-detail">
-                Buy ₹{formatNumber(data.fiiDii.diiBuy)} Cr · Sell ₹{formatNumber(data.fiiDii.diiSell)} Cr
-              </div>
-              <div className="mp-fiidii-sentiment">
-                {data.fiiDii.diiSentiment === 'bullish' ? '🟢 Net buying' :
-                 data.fiiDii.diiSentiment === 'bearish' ? '🔴 Net selling' :
-                 '🟡 Neutral flow'}
+              <div className="mp-global-price">{formatCrore(data.fiiDii.fiiNet)}</div>
+              <div className={`mp-global-change mp-gchange-${data.fiiDii.fiiSentiment === 'bullish' ? 'up' : data.fiiDii.fiiSentiment === 'bearish' ? 'down' : 'flat'}`}>
+                {data.fiiDii.fiiSentiment === 'bullish' ? '🟢 Buying' :
+                 data.fiiDii.fiiSentiment === 'bearish' ? '🔴 Selling' : '🟡 Neutral'}
               </div>
             </div>
+            <div className={`mp-global-card mp-global-${data.fiiDii.diiSentiment === 'bullish' ? 'up' : data.fiiDii.diiSentiment === 'bearish' ? 'down' : 'flat'}`}>
+              <div className="mp-global-top">
+                <span className="mp-global-flag">🏛️</span>
+                <span className="mp-global-name">DII</span>
+              </div>
+              <div className="mp-global-price">{formatCrore(data.fiiDii.diiNet)}</div>
+              <div className={`mp-global-change mp-gchange-${data.fiiDii.diiSentiment === 'bullish' ? 'up' : data.fiiDii.diiSentiment === 'bearish' ? 'down' : 'flat'}`}>
+                {data.fiiDii.diiSentiment === 'bullish' ? '🟢 Buying' :
+                 data.fiiDii.diiSentiment === 'bearish' ? '🔴 Selling' : '🟡 Neutral'}
+              </div>
+            </div>
+            {/* Global indices rendered inline */}
+            <GlobalMarketsCards />
+          </div>
+        </div>
+      )}
+
+      {!data.fiiDii && (
+        <div className="mp-fiidii-section">
+          <h4 className="mp-section-title">🌍 Global Markets</h4>
+          <div className="mp-unified-grid">
+            <GlobalMarketsCards />
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+/** Just the global market cards (no wrapper) */
+function GlobalMarketsCards() {
+  const [indices, setIndices] = useState<any[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchData() {
+      try {
+        const res = await fetch(`${API_BASE}/api/global-markets`);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) setIndices(json.indices || []);
+      } catch { /* ignore */ }
+    }
+    fetchData();
+    const id = setInterval(fetchData, 60 * 1000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  return (
+    <>
+      {indices.map((idx: any) => (
+        <div key={idx.symbol} className={`mp-global-card mp-global-${idx.direction}`}>
+          <div className="mp-global-top">
+            <span className="mp-global-flag">{idx.flag}</span>
+            <span className="mp-global-name">{idx.name}</span>
+          </div>
+          <div className="mp-global-price">
+            {idx.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div className={`mp-global-change mp-gchange-${idx.direction}`}>
+            {idx.direction === 'up' ? '▲' : idx.direction === 'down' ? '▼' : '—'}
+            {' '}{idx.changePercent >= 0 ? '+' : ''}{idx.changePercent.toFixed(2)}%
+          </div>
+        </div>
+      ))}
+    </>
   );
 }
