@@ -972,6 +972,7 @@ main {
 .mp-panel {
   padding: 1rem 1.5rem;
   border-left: 4px solid var(--border-strong);
+  overflow: hidden;
 }
 
 .mp-panel.mp-bullish { border-left-color: var(--green); }
@@ -1019,6 +1020,7 @@ main {
   grid-template-columns: repeat(6, 1fr);
   gap: 0.5rem;
   margin-bottom: 1rem;
+  overflow: hidden;
 }
 
 .mp-indicator {
@@ -1026,11 +1028,13 @@ main {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg-secondary);
+  min-width: 0;
+  overflow: hidden;
 }
 
-.mp-ind-label { font-size: 0.7rem; }
+.mp-ind-label { font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mp-value-num { font-size: 0.95rem; }
-.mp-ind-change { font-size: 0.7rem; }
+.mp-ind-change { font-size: 0.7rem; white-space: nowrap; }
 .mp-ind-rationale { font-size: 0.65rem; display: none; }
 
 .mp-indicator.mp-bullish { border-left: 3px solid var(--green); }
@@ -1650,7 +1654,7 @@ main {
   .dist-count { font-size: 1.25rem; }
   .analyst-rec-row { grid-template-columns: 1fr; }
 
-  .mp-indicators-grid { grid-template-columns: repeat(3, 1fr); }
+  .mp-indicators-grid { grid-template-columns: repeat(2, 1fr); }
   .mp-fiidii-grid { grid-template-columns: 1fr; }
   .mp-value-num { font-size: 1rem; }
 
@@ -2614,6 +2618,10 @@ main {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 0.5rem;
+}
+
+@media (max-width: 767px) {
+  .mp-unified-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 .mp-global-grid {
