@@ -36,6 +36,8 @@ interface MarketPulseData {
     sensex: Indicator;
     brentCrude: Indicator;
     usdInr: Indicator;
+    gold?: Indicator;
+    silver?: Indicator;
   };
   fiiDii: FiiDii | null;
 }
