@@ -96,14 +96,14 @@ export default function MarketPulse() {
   if (!data) return null;
 
   const verdictClass = sentimentClass(data.overallSentiment);
-  const indicators = [
+  const indicators: Indicator[] = [
     data.indicators.nifty50,
     data.indicators.sensex,
     data.indicators.brentCrude,
     data.indicators.usdInr,
     data.indicators.gold,
     data.indicators.silver,
-  ].filter(Boolean);
+  ].filter((ind): ind is Indicator => ind !== undefined);
 
   return (
     <div className={`mp-panel mp-${data.overallSentiment}`}>
