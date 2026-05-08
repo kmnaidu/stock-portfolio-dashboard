@@ -21,6 +21,8 @@ const mockQuote: QuoteData = {
   volume: 1000000,
   marketState: 'REGULAR',
   lastUpdated: new Date().toISOString(),
+  fiftyTwoWeekHigh: 200,
+  fiftyTwoWeekLow: 80,
 };
 
 function createFetchResponse(data: unknown, status = 200) {

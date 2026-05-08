@@ -15,6 +15,8 @@ function makeQuote(overrides: Partial<QuoteData> = {}): QuoteData {
     volume: 10000,
     marketState: 'REGULAR',
     lastUpdated: new Date().toISOString(),
+    fiftyTwoWeekHigh: 200,
+    fiftyTwoWeekLow: 80,
     ...overrides,
   };
 }
