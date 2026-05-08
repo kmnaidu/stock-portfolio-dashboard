@@ -2674,3 +2674,215 @@ main {
 @media (max-width: 600px) {
   .mp-global-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Agent Chat (Floating) ──────────────────────────────── */
+.agent-fab {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ec4899, #a855f7);
+  color: #fff;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.5);
+  z-index: 1000;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.agent-fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(168, 85, 247, 0.6);
+}
+
+.agent-panel {
+  position: fixed;
+  bottom: 5rem;
+  right: 1.5rem;
+  width: 380px;
+  max-height: 520px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agent-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #4285f4, #34a853);
+  color: #fff;
+}
+
+.agent-panel-title { font-weight: 700; font-size: 0.9rem; }
+.agent-panel-badge { font-size: 0.65rem; background: rgba(255,255,255,0.2); padding: 0.15rem 0.4rem; border-radius: 4px; }
+
+.agent-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 360px;
+}
+
+.agent-welcome {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  padding: 1rem 0;
+}
+
+.agent-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.agent-suggestions button {
+  font-size: 0.72rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.agent-suggestions button:hover {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.agent-msg {
+  max-width: 85%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.agent-msg-user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.agent-msg-agent {
+  align-self: flex-start;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-bottom-left-radius: 4px;
+}
+
+.agent-msg-meta {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  margin-top: 0.25rem;
+}
+
+.agent-typing {
+  display: flex;
+  gap: 4px;
+  padding: 0.25rem 0;
+}
+
+.agent-typing span {
+  width: 6px;
+  height: 6px;
+  background: var(--text-tertiary);
+  border-radius: 50%;
+  animation: agentBounce 1.2s infinite;
+}
+
+.agent-typing span:nth-child(2) { animation-delay: 0.2s; }
+.agent-typing span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes agentBounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
+}
+
+.agent-input-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.agent-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.agent-input:focus { border-color: var(--accent); }
+
+.agent-send-btn {
+  padding: 0.5rem 0.75rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.agent-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 600px) {
+  .agent-panel {
+    width: calc(100vw - 2rem);
+    right: 1rem;
+    bottom: 4.5rem;
+    max-height: 70vh;
+  }
+  .agent-fab { bottom: 1rem; right: 1rem; width: 48px; height: 48px; font-size: 1.2rem; }
+}
+
+/* Agent message formatting */
+.agent-msg-text .agent-action-line {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(66, 133, 244, 0.1);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: var(--accent);
+}
+
+[data-theme="dark"] .agent-msg-text .agent-action-line {
+  background: rgba(74, 158, 255, 0.15);
+}
+
+.agent-msg-text .agent-bullet {
+  font-size: 0.8rem;
+  margin: 0.15rem 0;
+  padding-left: 0.25rem;
+}
+
+.agent-msg-text .agent-para {
+  margin: 0.25rem 0;
+  font-size: 0.82rem;
+}
+
+.agent-msg-text .agent-para:last-child { margin-bottom: 0; }
+.agent-msg-text strong { font-weight: 700; }

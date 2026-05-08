@@ -14,6 +14,7 @@ import { computeGrowthPotential } from '../services/growthPotentialService.js';
 import type { AnalystDataService } from '../services/analystDataService.js';
 import type { MarketPulseService } from '../services/marketPulseService.js';
 import type { AIAnalysisService } from '../services/aiAnalysisService.js';
+import type { AgentService } from '../services/agentService.js';
 
 const VALID_RANGES = new Set<string>(['1d', '1w', '1mo', '3mo', '6mo', '1y']);
 
@@ -50,9 +51,11 @@ export function createApiRouter(services: {
   analystDataService: AnalystDataService;
   marketPulseService: MarketPulseService;
   aiAnalysisService: AIAnalysisService;
+  agentService: AgentService;
   cache: CacheService;
 }): Router {
   const { yfService, marketStatusService, predictionEngine, analystDataService, marketPulseService, aiAnalysisService } = services;
+  const agentService = services.agentService;
   const router = Router();
 
   // GET /api/health
@@ -592,6 +595,34 @@ export function createApiRouter(services: {
       res.status(503).json({
         error: 'AI_ANALYSIS_FAILED',
         symbol,
+        message: err instanceof Error ? err.message : 'Unknown error',
+      });
+    }
+  });
+
+  // POST /api/agent — Tool-calling AI agent that answers stock questions
+  router.post('/agent', async (req: Request, res: Response) => {
+    const { question } = req.body ?? {};
+    if (!question || typeof question !== 'string') {
+      res.status(400).json({ error: 'Expected { question: "your question here" }' });
+      return;
+    }
+
+    if (!agentService.isAvailable()) {
+      res.status(503).json({ error: 'AI agent unavailable — GEMINI_API_KEY not configured' });
+      return;
+    }
+
+    try {
+      const result = await agentService.ask(question);
+      if (!result) {
+        res.status(503).json({ error: 'All AI models are currently overloaded. Please try again in 30 seconds.' });
+        return;
+      }
+      res.json(result);
+    } catch (err) {
+      res.status(503).json({
+        error: 'Agent error',
         message: err instanceof Error ? err.message : 'Unknown error',
       });
     }
