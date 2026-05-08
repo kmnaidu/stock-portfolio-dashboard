@@ -40,12 +40,11 @@ export function sortQuotes(
 const COLUMNS: { key: string; label: string; sortField?: SortField }[] = [
   { key: 'name', label: 'Name', sortField: 'name' },
   { key: 'price', label: 'Price', sortField: 'price' },
-  { key: 'change', label: 'Change' },
-  { key: 'changePct', label: 'Change %', sortField: 'dailyChangePercent' },
-  { key: 'high', label: 'Day High' },
-  { key: 'low', label: 'Day Low' },
+  { key: 'change', label: 'Chng(₹)\nChng(%)', sortField: 'dailyChangePercent' },
+  { key: 'highLow', label: 'D High\nD Low' },
+  { key: '52w', label: '52W High\n52W Low' },
   { key: 'volume', label: 'Volume', sortField: 'volume' },
-  { key: 'updated', label: 'Last Updated' },
+  { key: 'updated', label: 'Updated' },
   { key: 'actions', label: '' },
 ];
 
@@ -110,7 +109,9 @@ export default function StockGrid() {
                 }`}
                 onClick={col.sortField ? () => handleSort(col.sortField!) : undefined}
               >
-                {col.label}
+                {col.label.includes('\n')
+                  ? col.label.split('\n').map((line, i) => <span key={i} className="header-line">{line}</span>)
+                  : col.label}
                 {col.sortField === sortField && (
                   <span className="sort-indicator">
                     {sortDirection === 'asc' ? ' ▲' : ' ▼'}

@@ -182,6 +182,8 @@ async function fetchQuotes(symbols: string[]): Promise<QuoteData[]> {
         volume: meta.regularMarketVolume ?? totalVolume,
         marketState: meta.marketState ?? 'CLOSED',
         lastUpdated: new Date().toISOString(),
+        fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh ?? 0,
+        fiftyTwoWeekLow: meta.fiftyTwoWeekLow ?? 0,
       });
     } catch {
       // Skip failed symbols

@@ -14,6 +14,8 @@ export interface QuoteData {
   volume: number;
   marketState: string;
   lastUpdated: string;
+  fiftyTwoWeekHigh: number;
+  fiftyTwoWeekLow: number;
 }
 
 export interface HistoricalDataPoint {

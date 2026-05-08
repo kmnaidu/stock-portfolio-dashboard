@@ -93,7 +93,7 @@ export default function StockRow({ quote }: StockRowProps) {
         onKeyDown={(e) => e.key === 'Enter' && navigate(`/stock/${quote.symbol}`)}
       >
         <td className="cell-name">{quote.shortName}</td>
-        <td colSpan={6} className="cell-unavailable">Data Unavailable</td>
+        <td colSpan={5} className="cell-unavailable">Data Unavailable</td>
       </tr>
     );
   }
@@ -110,10 +110,24 @@ export default function StockRow({ quote }: StockRowProps) {
           <span className="stock-symbol">{quote.symbol.replace('.NS', '')}</span>
         </td>
         <td className="cell-price" onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatINR(quote.price)}</td>
-        <td className={`cell-change ${directionClass}`} onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatChange(quote.change)}</td>
-        <td className={`cell-change-pct ${directionClass}`} onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatPercent(quote.changePercent)}</td>
-        <td className="cell-high" onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatINR(quote.dayHigh)}</td>
-        <td className="cell-low" onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatINR(quote.dayLow)}</td>
+        <td className={`cell-change-stacked ${directionClass}`} onClick={() => navigate(`/stock/${quote.symbol}`)}>
+          <div className="stacked-cell">
+            <span>{formatChange(quote.change)}</span>
+            <span>{formatPercent(quote.changePercent)}</span>
+          </div>
+        </td>
+        <td className="cell-highlow" onClick={() => navigate(`/stock/${quote.symbol}`)}>
+          <div className="stacked-cell">
+            <span className="val-high">{formatINR(quote.dayHigh)}</span>
+            <span className="val-low">{formatINR(quote.dayLow)}</span>
+          </div>
+        </td>
+        <td className="cell-highlow" onClick={() => navigate(`/stock/${quote.symbol}`)}>
+          <div className="stacked-cell">
+            <span className="val-high">{formatINR(quote.fiftyTwoWeekHigh)}</span>
+            <span className="val-low">{formatINR(quote.fiftyTwoWeekLow)}</span>
+          </div>
+        </td>
         <td className="cell-volume" onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatVolume(quote.volume)}</td>
         <td className="cell-updated" onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatTimestamp(quote.lastUpdated)}</td>
         <td className="cell-actions">
