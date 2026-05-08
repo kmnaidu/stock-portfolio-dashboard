@@ -58,9 +58,20 @@ export function createApiRouter(services: {
   const agentService = services.agentService;
   const router = Router();
 
+  // Track all stock symbols ever requested by users (for dynamic prewarm)
+  const requestedStocks = new Set<string>();
+
   // GET /api/health
   router.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok' });
+  });
+
+  // GET /api/requested-stocks — returns all symbols ever requested by users
+  router.get('/requested-stocks', (_req: Request, res: Response) => {
+    res.json({
+      stocks: [...requestedStocks].sort(),
+      count: requestedStocks.size,
+    });
   });
 
   // GET /api/quotes?symbols=RELIANCE.NS,TCS.NS — accepts custom watchlist
@@ -205,6 +216,9 @@ export function createApiRouter(services: {
     const symbol = req.params.symbol as string;
     if (!validateSymbol(symbol, res)) return;
 
+    // Track this stock as requested
+    requestedStocks.add(symbol);
+
     const cacheKey = `sr:${symbol}`;
     const cached = services.cache.get<any>(cacheKey);
     if (cached) { res.json(cached); return; }
@@ -305,6 +319,9 @@ export function createApiRouter(services: {
   router.get('/analyst/:symbol', async (req: Request, res: Response) => {
     const symbol = req.params.symbol as string;
     if (!validateSymbol(symbol, res)) return;
+
+    // Track this stock as requested
+    requestedStocks.add(symbol);
 
     const data = await analystDataService.getAnalystData(symbol);
     if (!data) {

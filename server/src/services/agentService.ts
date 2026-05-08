@@ -212,7 +212,7 @@ export function createAgentService(
       const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
       
       // Try models in order (fallback if one is overloaded)
-      const modelNames = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
+      const modelNames = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
       let lastError: any = null;
 
       for (const modelName of modelNames) {
