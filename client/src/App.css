@@ -1029,7 +1029,7 @@ main {
 
 .mp-indicators-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 0.5rem;
   margin-bottom: 1rem;
   overflow: hidden;
@@ -1680,6 +1680,7 @@ main {
   .stock-grid thead th:nth-child(5), .stock-grid thead th:nth-child(6), .stock-grid thead th:nth-child(8) { display: none; }
   .prediction-cards { grid-template-columns: repeat(2, 1fr); }
   .metrics-grid { grid-template-columns: repeat(3, 1fr); }
+  .mp-indicators-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
 /* ═══════════════════════════════════════════════════════════

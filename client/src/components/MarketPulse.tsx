@@ -38,6 +38,8 @@ interface MarketPulseData {
     usdInr: Indicator;
     gold?: Indicator;
     silver?: Indicator;
+    giftNifty?: Indicator;
+    indiaVix?: Indicator;
   };
   fiiDii: FiiDii | null;
 }
@@ -99,11 +101,15 @@ export default function MarketPulse() {
   const indicators: Indicator[] = [
     data.indicators.nifty50,
     data.indicators.sensex,
+    data.indicators.giftNifty,
+    data.indicators.indiaVix,
     data.indicators.brentCrude,
     data.indicators.usdInr,
     data.indicators.gold,
     data.indicators.silver,
   ].filter((ind): ind is Indicator => ind !== undefined);
+
+  // No separate commodities — all in top row
 
   return (
     <div className={`mp-panel mp-${data.overallSentiment}`}>
@@ -126,6 +132,7 @@ export default function MarketPulse() {
               <span className="mp-value-num">
                 {['Brent Crude', 'Gold', 'Silver'].includes(ind.label) ? `$${formatNumber(ind.value)}` :
                  ind.label === 'USD/INR' ? `₹${formatNumber(ind.value)}` :
+                 ind.label === 'India VIX' ? formatNumber(ind.value) :
                  formatNumber(ind.value)}
               </span>
               <span className="mp-arrow">{directionArrow(ind.direction)}</span>

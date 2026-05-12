@@ -47,6 +47,10 @@ export interface MarketPulseData {
     sensex: MarketIndicator;
     brentCrude: MarketIndicator;
     usdInr: MarketIndicator;
+    gold?: MarketIndicator;
+    silver?: MarketIndicator;
+    giftNifty?: MarketIndicator;
+    indiaVix?: MarketIndicator;
   };
 
   fiiDii: FiiDiiActivity | null;
@@ -81,6 +85,43 @@ async function fetchYahooQuote(symbol: string): Promise<{ price: number; prevClo
     }
 
     return { price: currentPrice, prevClose };
+  } catch {
+    return null;
+  }
+}
+
+// ── Fetch GIFT Nifty from TradingView Scanner API ────────────
+// GIFT Nifty (NSEIX:NIFTY1!) is not on Yahoo Finance.
+// TradingView's scanner API provides live futures data for free.
+// Change is calculated against GIFT Nifty's own previous close (like brokers do).
+async function fetchGiftNifty(): Promise<{ price: number; prevClose: number } | null> {
+  try {
+    const payload = JSON.stringify({
+      columns: ['close', 'change', 'change_abs', 'open', 'high', 'low'],
+      symbols: { tickers: ['NSEIX:NIFTY1!'] },
+    });
+
+    const res = await fetch('https://scanner.tradingview.com/global/scan', {
+      method: 'POST',
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Content-Type': 'application/json',
+      },
+      body: payload,
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!res.ok) return null;
+    const json = (await res.json()) as any;
+    const data = json?.data?.[0]?.d;
+    if (!data || data.length < 3) return null;
+
+    const price = data[0];       // current close/last price
+    const changeAbs = data[2];   // absolute change from GIFT Nifty's own prev close
+    const prevClose = price - changeAbs; // GIFT Nifty's own previous session close
+
+    if (!price || price <= 0) return null;
+    return { price, prevClose };
   } catch {
     return null;
   }
@@ -176,6 +217,7 @@ function computeOverallSentiment(
   brent: MarketIndicator,
   usdInr: MarketIndicator,
   fiiDii: FiiDiiActivity | null,
+  indiaVix?: MarketIndicator,
 ): { sentiment: MarketPulseData['overallSentiment']; score: number; verdict: string } {
   let score = 0;
   const signals: string[] = [];
@@ -191,6 +233,12 @@ function computeOverallSentiment(
   // USD/INR (weight: 1.5, inverse — stronger dollar = weaker rupee = bearish)
   if (usdInr.sentiment === 'bearish') { score -= 15; signals.push('rupee weakening'); }
   else if (usdInr.sentiment === 'bullish') { score += 15; signals.push('rupee strengthening'); }
+
+  // India VIX (weight: 1 — high VIX = fear = bearish)
+  if (indiaVix) {
+    if (indiaVix.sentiment === 'bearish') { score -= 10; signals.push('VIX rising'); }
+    else if (indiaVix.sentiment === 'bullish') { score += 10; signals.push('VIX falling'); }
+  }
 
   // FII activity (weight: 2)
   if (fiiDii) {
@@ -234,15 +282,19 @@ export function createMarketPulseService(cache: CacheService): MarketPulseServic
       if (cached) return cached;
 
       // Fetch all indicators in parallel
-      const [nifty, sensex, brent, usdInr, gold, silver, fiiDii] = await Promise.all([
+      const [nifty, sensex, brent, usdInr, gold, silver, indiaVix, fiiDii] = await Promise.all([
         fetchYahooQuote('^NSEI'),
         fetchYahooQuote('^BSESN'),
         fetchYahooQuote('BZ=F'),
         fetchYahooQuote('INR=X'),
         fetchYahooQuote('GC=F'),
         fetchYahooQuote('SI=F'),
+        fetchYahooQuote('^INDIAVIX'),
         fetchFiiDii(),
       ]);
+
+      // Fetch GIFT Nifty (uses its own previous close, like brokers)
+      const giftNifty = await fetchGiftNifty();
 
       const niftyInd = buildIndicator('Nifty 50', '^NSEI', nifty, {
         risingIsBullish: true,
@@ -280,7 +332,19 @@ export function createMarketPulseService(cache: CacheService): MarketPulseServic
         rationaleDown: 'Silver falling — industrial demand weak',
       });
 
-      const overall = computeOverallSentiment(niftyInd, brentInd, usdInrInd, fiiDii);
+      const giftNiftyInd = buildIndicator('GIFT Nifty', 'GIFT_NIFTY', giftNifty, {
+        risingIsBullish: true,
+        rationaleUp: 'GIFT Nifty up — signals positive opening for Indian market',
+        rationaleDown: 'GIFT Nifty down — signals gap-down opening',
+      });
+
+      const indiaVixInd = buildIndicator('India VIX', '^INDIAVIX', indiaVix, {
+        risingIsBullish: false,
+        rationaleUp: 'VIX rising — fear increasing, expect volatility',
+        rationaleDown: 'VIX falling — calm market, bullish undertone',
+      });
+
+      const overall = computeOverallSentiment(niftyInd, brentInd, usdInrInd, fiiDii, indiaVixInd);
 
       const result: MarketPulseData = {
         generatedAt: new Date().toISOString(),
@@ -294,6 +358,8 @@ export function createMarketPulseService(cache: CacheService): MarketPulseServic
           usdInr: usdInrInd,
           gold: goldInd,
           silver: silverInd,
+          giftNifty: giftNiftyInd,
+          indiaVix: indiaVixInd,
         },
         fiiDii,
       };
