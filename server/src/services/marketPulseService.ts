@@ -359,8 +359,12 @@ export function createMarketPulseService(cache: CacheService): MarketPulseServic
         fetchFiiDii(),
       ]);
 
-      // Fetch GIFT Nifty (uses its own previous close, like brokers)
-      const giftNifty = await fetchGiftNifty();
+      // Fetch GIFT Nifty — show gap from Nifty 50's LATEST price (today's close)
+      // This shows the expected opening gap for tomorrow
+      const giftNiftyRaw = await fetchGiftNifty();
+      const giftNifty = giftNiftyRaw && nifty ? 
+        { price: giftNiftyRaw.price, prevClose: nifty.price } : // Use Nifty's current/latest price
+        giftNiftyRaw;
 
       // Calculate Nifty pivot levels for the day
       const niftyLevels = await fetchNiftyPivotLevels(nifty?.price ?? 0);
@@ -403,8 +407,8 @@ export function createMarketPulseService(cache: CacheService): MarketPulseServic
 
       const giftNiftyInd = buildIndicator('GIFT Nifty', 'GIFT_NIFTY', giftNifty, {
         risingIsBullish: true,
-        rationaleUp: 'GIFT Nifty up — signals positive opening for Indian market',
-        rationaleDown: 'GIFT Nifty down — signals gap-down opening',
+        rationaleUp: 'GIFT Nifty above Nifty close — gap-up opening expected',
+        rationaleDown: 'GIFT Nifty below Nifty close — gap-down opening expected',
       });
 
       const indiaVixInd = buildIndicator('India VIX', '^INDIAVIX', indiaVix, {
