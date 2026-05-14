@@ -511,6 +511,121 @@ export function createApiRouter(services: {
     }
   });
 
+  // GET /api/index-futures — live index futures from TradingView (trade after hours)
+  router.get('/index-futures', async (_req: Request, res: Response) => {
+    const cacheKey = 'index-futures';
+    const cached = services.cache.get<any>(cacheKey);
+    if (cached) { res.json(cached); return; }
+
+    const FUTURES = [
+      { ticker: 'NSEIX:NIFTY1!', name: 'Nifty 50', flag: '🇮🇳' },
+      { ticker: 'NSEIX:BANKNIFTY1!', name: 'Bank Nifty', flag: '🇮🇳' },
+      { ticker: 'CME_MINI:ES1!', name: 'S&P 500', flag: '🇺🇸' },
+      { ticker: 'CME_MINI:NQ1!', name: 'NASDAQ 100', flag: '🇺🇸' },
+      { ticker: 'CBOT_MINI:YM1!', name: 'Dow Jones', flag: '🇺🇸' },
+      { ticker: 'CME_MINI:RTY1!', name: 'Russell 2000', flag: '🇺🇸' },
+      { ticker: 'EUREX:FDAX1!', name: 'DAX', flag: '🇩🇪' },
+      { ticker: 'EURONEXT:FCE1!', name: 'CAC 40', flag: '🇫🇷' },
+    ];
+
+    try {
+      const payload = JSON.stringify({
+        columns: ['close', 'change', 'change_abs', 'high', 'low'],
+        symbols: { tickers: FUTURES.map(f => f.ticker) },
+      });
+
+      const fetchRes = await fetch('https://scanner.tradingview.com/global/scan', {
+        method: 'POST',
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json' },
+        body: payload,
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (!fetchRes.ok) { res.status(503).json({ error: 'FUTURES_UNAVAILABLE' }); return; }
+      const json = (await fetchRes.json()) as any;
+
+      const futures = json.data.map((item: any) => {
+        const meta = FUTURES.find(f => f.ticker === item.s);
+        const [price, changePct, changeAbs, high, low] = item.d;
+        return {
+          symbol: item.s,
+          name: meta?.name || item.s,
+          flag: meta?.flag || '',
+          price: Math.round(price * 100) / 100,
+          change: Math.round(changeAbs * 100) / 100,
+          changePercent: Math.round(changePct * 100) / 100,
+          high: Math.round(high * 100) / 100,
+          low: Math.round(low * 100) / 100,
+          direction: Math.abs(changePct) < 0.05 ? 'flat' : (changePct > 0 ? 'up' : 'down'),
+        };
+      });
+
+      const result = { generatedAt: new Date().toISOString(), futures };
+      services.cache.set(cacheKey, result, 30); // 30 sec cache
+      res.json(result);
+    } catch {
+      res.status(503).json({ error: 'FUTURES_UNAVAILABLE' });
+    }
+  });
+
+  // GET /api/commodity-futures — live commodity futures from TradingView
+  router.get('/commodity-futures', async (_req: Request, res: Response) => {
+    const cacheKey = 'commodity-futures';
+    const cached = services.cache.get<any>(cacheKey);
+    if (cached) { res.json(cached); return; }
+
+    const COMMODITIES = [
+      { ticker: 'COMEX:GC1!', name: 'Gold', flag: '🥇' },
+      { ticker: 'COMEX:SI1!', name: 'Silver', flag: '🥈' },
+      { ticker: 'NYMEX:CL1!', name: 'Crude Oil WTI', flag: '🛢️' },
+      { ticker: 'NYMEX:BZ1!', name: 'Brent Oil', flag: '🛢️' },
+      { ticker: 'COMEX:HG1!', name: 'Copper', flag: '🔶' },
+      { ticker: 'NYMEX:NG1!', name: 'Natural Gas', flag: '🔥' },
+      { ticker: 'CBOT:ZS1!', name: 'US Soybeans', flag: '🌱' },
+      { ticker: 'CBOT:ZW1!', name: 'US Wheat', flag: '🌾' },
+      { ticker: 'NYMEX:RB1!', name: 'Gasoline RBOB', flag: '⛽' },
+    ];
+
+    try {
+      const payload = JSON.stringify({
+        columns: ['close', 'change', 'change_abs', 'high', 'low'],
+        symbols: { tickers: COMMODITIES.map(c => c.ticker) },
+      });
+
+      const fetchRes = await fetch('https://scanner.tradingview.com/global/scan', {
+        method: 'POST',
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json' },
+        body: payload,
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (!fetchRes.ok) { res.status(503).json({ error: 'COMMODITIES_UNAVAILABLE' }); return; }
+      const json = (await fetchRes.json()) as any;
+
+      const commodities = json.data.map((item: any) => {
+        const meta = COMMODITIES.find(c => c.ticker === item.s);
+        const [price, changePct, changeAbs, high, low] = item.d;
+        return {
+          symbol: item.s,
+          name: meta?.name || item.s,
+          flag: meta?.flag || '',
+          price: Math.round(price * 10000) / 10000,
+          change: Math.round(changeAbs * 10000) / 10000,
+          changePercent: Math.round(changePct * 100) / 100,
+          high: Math.round(high * 10000) / 10000,
+          low: Math.round(low * 10000) / 10000,
+          direction: Math.abs(changePct) < 0.05 ? 'flat' : (changePct > 0 ? 'up' : 'down'),
+        };
+      });
+
+      const result = { generatedAt: new Date().toISOString(), commodities };
+      services.cache.set(cacheKey, result, 30);
+      res.json(result);
+    } catch {
+      res.status(503).json({ error: 'COMMODITIES_UNAVAILABLE' });
+    }
+  });
+
   // POST /api/cache-analyst — inject pre-warmed analyst data into Node.js cache
   // Called by the prewarm script running on your laptop
   router.post('/cache-analyst', (req: Request, res: Response) => {

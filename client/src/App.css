@@ -2817,7 +2817,40 @@ main {
 .agent-quick-actions {
   display: flex;
   justify-content: center;
+  gap: 0.5rem;
   margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.agent-quick-actions-fixed {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.agent-quick-btn-sm {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: rgba(139, 92, 246, 0.08);
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.agent-quick-btn-sm:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.18);
+}
+
+.agent-quick-btn-sm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .agent-quick-btn {

@@ -69,10 +69,14 @@ export default function AgentChat() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    // Scroll to top so latest quick-action response header is visible
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = 0;
+    }
+  }, [messages.length]);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -111,10 +115,70 @@ export default function AgentChat() {
     }
   };
 
+  // Quick action: Fetch Index Futures directly (no LLM)
+  const handleIndexFutures = async () => {
+    if (loading) return;
+    setMessages([{ role: 'user', text: '📈 Index Futures' }]);
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/index-futures`);
+      if (!res.ok) throw new Error('Could not fetch futures');
+      const data = await res.json();
+
+      let text = `**📈 Index Futures (Live)**\n\n`;
+      for (const f of data.futures) {
+        const arrow = f.direction === 'up' ? '🟢' : f.direction === 'down' ? '🔴' : '🟡';
+        const sign = f.changePercent >= 0 ? '+' : '';
+        text += `${arrow} **${f.flag} ${f.name}:** ${f.price.toLocaleString('en-US')} (${sign}${f.changePercent.toFixed(2)}%)\n`;
+      }
+      text += `\n⚡ Live from TradingView (no LLM)`;
+
+      setMessages(prev => [...prev, { role: 'agent', text }]);
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        role: 'agent',
+        text: `❌ ${err instanceof Error ? err.message : 'Could not fetch index futures'}`,
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Quick action: Fetch Commodity Futures directly (no LLM)
+  const handleCommodityFutures = async () => {
+    if (loading) return;
+    setMessages([{ role: 'user', text: '🛢️ Commodity Futures' }]);
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/commodity-futures`);
+      if (!res.ok) throw new Error('Could not fetch commodities');
+      const data = await res.json();
+
+      let text = `**🛢️ Commodity Futures (Live)**\n\n`;
+      for (const c of data.commodities) {
+        const arrow = c.direction === 'up' ? '🟢' : c.direction === 'down' ? '🔴' : '🟡';
+        const sign = c.changePercent >= 0 ? '+' : '';
+        text += `${arrow} **${c.flag} ${c.name}:** ${c.price.toLocaleString('en-US')} (${sign}${c.changePercent.toFixed(2)}%)\n`;
+      }
+      text += `\n⚡ Live from TradingView (no LLM)`;
+
+      setMessages(prev => [...prev, { role: 'agent', text }]);
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        role: 'agent',
+        text: `❌ ${err instanceof Error ? err.message : 'Could not fetch commodity futures'}`,
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Quick action: Fetch Nifty levels directly (no LLM)
   const handleNiftyLevels = async () => {
     if (loading) return;
-    setMessages(prev => [...prev, { role: 'user', text: '📐 Nifty 50 Key Levels' }]);
+    setMessages([{ role: 'user', text: '📐 Nifty 50 Key Levels' }]);
     setLoading(true);
 
     try {
@@ -174,13 +238,17 @@ export default function AgentChat() {
             <span className="agent-panel-badge">AI Agent</span>
           </div>
 
-          <div className="agent-messages">
+          {/* Quick actions always visible below header */}
+          <div className="agent-quick-actions-fixed">
+            <button className="agent-quick-btn-sm" onClick={handleNiftyLevels} disabled={loading}>📐 Nifty Levels</button>
+            <button className="agent-quick-btn-sm" onClick={handleIndexFutures} disabled={loading}>📈 Futures</button>
+            <button className="agent-quick-btn-sm" onClick={handleCommodityFutures} disabled={loading}>🛢️ Commodities</button>
+          </div>
+
+          <div className="agent-messages" ref={messagesContainerRef}>
             {messages.length === 0 && (
               <div className="agent-welcome">
                 <p>Ask me anything about stocks:</p>
-                <div className="agent-quick-actions">
-                  <button className="agent-quick-btn" onClick={handleNiftyLevels}>📐 Nifty Key Levels</button>
-                </div>
                 <div className="agent-suggestions">
                   <button onClick={() => { setInput('Should I buy ICICI Bank?'); }}>Should I buy ICICI Bank?</button>
                   <button onClick={() => { setInput('Which stock has highest upside?'); }}>Highest upside stock?</button>
