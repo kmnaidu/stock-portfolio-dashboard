@@ -437,6 +437,20 @@ export function createApiRouter(services: {
     }
   });
 
+  // GET /api/nifty-levels — pivot point support/resistance levels (no LLM, pure math)
+  router.get('/nifty-levels', async (_req: Request, res: Response) => {
+    try {
+      const data = await marketPulseService.getPulse();
+      if (data.niftyLevels) {
+        res.json(data.niftyLevels);
+      } else {
+        res.status(503).json({ error: 'NIFTY_LEVELS_UNAVAILABLE' });
+      }
+    } catch {
+      res.status(503).json({ error: 'NIFTY_LEVELS_UNAVAILABLE' });
+    }
+  });
+
   // GET /api/global-markets — major global indices
   router.get('/global-markets', async (_req: Request, res: Response) => {
     const cacheKey = 'global-markets';

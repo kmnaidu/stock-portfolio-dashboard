@@ -111,6 +111,47 @@ export default function AgentChat() {
     }
   };
 
+  // Quick action: Fetch Nifty levels directly (no LLM)
+  const handleNiftyLevels = async () => {
+    if (loading) return;
+    setMessages(prev => [...prev, { role: 'user', text: '📐 Nifty 50 Key Levels' }]);
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/nifty-levels`);
+      if (!res.ok) throw new Error('Could not fetch levels');
+      const levels = await res.json();
+
+      const biasEmoji = levels.bias === 'bullish' ? '🟢' : levels.bias === 'bearish' ? '🔴' : '🟡';
+      const biasText = levels.bias === 'bullish' ? 'Above Pivot (Bullish)' :
+                       levels.bias === 'bearish' ? 'Below Pivot (Bearish)' : 'At Pivot (Neutral)';
+
+      const text = `**📐 Nifty 50 Key Levels**\n\n` +
+        `**Resistance:**\n` +
+        `• R2: ${levels.r2.toLocaleString('en-IN')} (strong resistance)\n` +
+        `• R1: ${levels.r1.toLocaleString('en-IN')} (first hurdle)\n\n` +
+        `**Pivot: ${levels.pivot.toLocaleString('en-IN')}**\n\n` +
+        `**Support:**\n` +
+        `• S1: ${levels.s1.toLocaleString('en-IN')} (first cushion)\n` +
+        `• S2: ${levels.s2.toLocaleString('en-IN')} (strong floor)\n\n` +
+        `**Current: ${levels.current.toLocaleString('en-IN')}**\n` +
+        `**Bias: ${biasEmoji} ${biasText}**\n\n` +
+        `- Trading above ${levels.pivot.toLocaleString('en-IN')} = bullish for the day\n` +
+        `- Breaking below ${levels.s1.toLocaleString('en-IN')} = bearish signal\n` +
+        `- Target on upside: ${levels.r1.toLocaleString('en-IN')}\n\n` +
+        `⚡ Calculated from pivot formula (no LLM)`;
+
+      setMessages(prev => [...prev, { role: 'agent', text }]);
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        role: 'agent',
+        text: `❌ ${err instanceof Error ? err.message : 'Could not fetch Nifty levels'}`,
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       {/* Floating button */}
@@ -137,10 +178,13 @@ export default function AgentChat() {
             {messages.length === 0 && (
               <div className="agent-welcome">
                 <p>Ask me anything about stocks:</p>
+                <div className="agent-quick-actions">
+                  <button className="agent-quick-btn" onClick={handleNiftyLevels}>📐 Nifty Key Levels</button>
+                </div>
                 <div className="agent-suggestions">
                   <button onClick={() => { setInput('Should I buy ICICI Bank?'); }}>Should I buy ICICI Bank?</button>
                   <button onClick={() => { setInput('Which stock has highest upside?'); }}>Highest upside stock?</button>
-                  <button onClick={() => { setInput('Is the market safe today?'); }}>Market safe today?</button>
+                  <button onClick={() => { setInput("What's the market outlook for today? Consider Nifty, crude oil, FII/DII activity and give your prediction."); }}>Market prediction today?</button>
                   <button onClick={() => { setInput("What's Reliance support level?"); }}>Reliance support?</button>
                 </div>
               </div>

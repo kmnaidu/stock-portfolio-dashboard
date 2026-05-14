@@ -53,6 +53,18 @@ export interface MarketPulseData {
     indiaVix?: MarketIndicator;
   };
 
+  niftyLevels?: {
+    pivot: number;
+    r1: number;
+    r2: number;
+    r3: number;
+    s1: number;
+    s2: number;
+    s3: number;
+    current: number;
+    bias: 'bullish' | 'bearish' | 'neutral';
+  };
+
   fiiDii: FiiDiiActivity | null;
 }
 
@@ -69,15 +81,22 @@ async function fetchYahooQuote(symbol: string): Promise<{ price: number; prevClo
 
     const currentPrice = meta.regularMarketPrice ?? 0;
 
-    // Yahoo's chartPreviousClose returns value from ~5 days ago (including weekends/holidays).
-    // Use the actual previous trading day's close from the daily bars array.
-    // The last non-null close is today; the one before that is yesterday's close.
+    // Determine previous close from daily bars.
+    // Yahoo returns 5 days of daily data. Today's bar may be null (market still open).
+    // Logic:
+    //   - If last bar is null → market is open today, last non-null = yesterday's close (= prev close)
+    //   - If last bar is NOT null → market closed today, last non-null = today's close,
+    //     second-to-last = yesterday's close (= prev close)
     const closes: (number | null)[] = result?.indicators?.quote?.[0]?.close ?? [];
     const nonNullCloses = closes.filter((c): c is number => c != null);
+    const lastBarIsNull = closes.length > 0 && closes[closes.length - 1] == null;
 
     let prevClose = 0;
-    if (nonNullCloses.length >= 2) {
-      // Second-to-last non-null close is the actual previous trading day
+    if (lastBarIsNull && nonNullCloses.length >= 1) {
+      // Market is open today — last non-null close IS yesterday's close
+      prevClose = nonNullCloses[nonNullCloses.length - 1];
+    } else if (nonNullCloses.length >= 2) {
+      // Market closed today — second-to-last is yesterday's close
       prevClose = nonNullCloses[nonNullCloses.length - 2];
     } else {
       // Fallback if we don't have enough data
@@ -124,6 +143,53 @@ async function fetchGiftNifty(): Promise<{ price: number; prevClose: number } | 
     return { price, prevClose };
   } catch {
     return null;
+  }
+}
+
+// ── Fetch Nifty OHLC and calculate Pivot Levels ──────────────
+// Uses standard pivot point formula from previous day's High, Low, Close
+async function fetchNiftyPivotLevels(currentPrice: number): Promise<MarketPulseData['niftyLevels']> {
+  try {
+    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/^NSEI?range=5d&interval=1d';
+    const res = await fetch(url, { headers: YF_HEADERS, signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return undefined;
+    const json = (await res.json()) as any;
+    const result = json?.chart?.result?.[0];
+    const quotes = result?.indicators?.quote?.[0];
+    if (!quotes) return undefined;
+
+    const highs: (number | null)[] = quotes.high ?? [];
+    const lows: (number | null)[] = quotes.low ?? [];
+    const closes: (number | null)[] = quotes.close ?? [];
+
+    // Get the last completed trading day's OHLC (second-to-last non-null values)
+    const validHighs = highs.filter((v): v is number => v != null);
+    const validLows = lows.filter((v): v is number => v != null);
+    const validCloses = closes.filter((v): v is number => v != null);
+
+    if (validHighs.length < 2 || validLows.length < 2 || validCloses.length < 2) return undefined;
+
+    // Use the most recent completed day (last values represent today if market was open)
+    const high = validHighs[validHighs.length - 1];
+    const low = validLows[validLows.length - 1];
+    const close = validCloses[validCloses.length - 1];
+
+    // Standard Pivot Point formula
+    const pivot = Math.round(((high + low + close) / 3) * 100) / 100;
+    const r1 = Math.round(((2 * pivot) - low) * 100) / 100;
+    const r2 = Math.round((pivot + (high - low)) * 100) / 100;
+    const r3 = Math.round((high + 2 * (pivot - low)) * 100) / 100;
+    const s1 = Math.round(((2 * pivot) - high) * 100) / 100;
+    const s2 = Math.round((pivot - (high - low)) * 100) / 100;
+    const s3 = Math.round((low - 2 * (high - pivot)) * 100) / 100;
+
+    const bias: 'bullish' | 'bearish' | 'neutral' =
+      currentPrice > pivot + 20 ? 'bullish' :
+      currentPrice < pivot - 20 ? 'bearish' : 'neutral';
+
+    return { pivot, r1, r2, r3, s1, s2, s3, current: currentPrice, bias };
+  } catch {
+    return undefined;
   }
 }
 
@@ -296,6 +362,9 @@ export function createMarketPulseService(cache: CacheService): MarketPulseServic
       // Fetch GIFT Nifty (uses its own previous close, like brokers)
       const giftNifty = await fetchGiftNifty();
 
+      // Calculate Nifty pivot levels for the day
+      const niftyLevels = await fetchNiftyPivotLevels(nifty?.price ?? 0);
+
       const niftyInd = buildIndicator('Nifty 50', '^NSEI', nifty, {
         risingIsBullish: true,
         rationaleUp: 'Benchmark up — broad market strength',
@@ -361,6 +430,7 @@ export function createMarketPulseService(cache: CacheService): MarketPulseServic
           giftNifty: giftNiftyInd,
           indiaVix: indiaVixInd,
         },
+        niftyLevels,
         fiiDii,
       };
 

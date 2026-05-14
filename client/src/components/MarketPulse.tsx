@@ -41,6 +41,17 @@ interface MarketPulseData {
     giftNifty?: Indicator;
     indiaVix?: Indicator;
   };
+  niftyLevels?: {
+    pivot: number;
+    r1: number;
+    r2: number;
+    r3: number;
+    s1: number;
+    s2: number;
+    s3: number;
+    current: number;
+    bias: 'bullish' | 'bearish' | 'neutral';
+  };
   fiiDii: FiiDii | null;
 }
 
