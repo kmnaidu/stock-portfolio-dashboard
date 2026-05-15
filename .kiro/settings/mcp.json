@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "stock-market": {
+      "command": "node",
+      "args": ["mcp-server/dist/index.js"],
+      "disabled": false,
+      "autoApprove": ["get_stock_price", "get_nifty_levels", "get_index_futures", "get_commodity_futures", "get_market_pulse"]
+    }
+  }
+}
