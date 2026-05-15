@@ -20,6 +20,22 @@ import type { MarketPulseService } from './marketPulseService.js';
 import { computeSupportResistance } from './supportResistanceService.js';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_API_KEYS = [
+  process.env.GEMINI_API_KEY || '',
+  process.env.GEMINI_API_KEY_2 || '',
+  process.env.GEMINI_API_KEY_3 || '',
+  process.env.GEMINI_API_KEY_4 || '',
+].filter(k => k.length > 0);
+
+let currentKeyIndex = 0;
+
+function getNextKey(): string {
+  if (GEMINI_API_KEYS.length === 0) return '';
+  const key = GEMINI_API_KEYS[currentKeyIndex];
+  currentKeyIndex = (currentKeyIndex + 1) % GEMINI_API_KEYS.length;
+  return key;
+}
+
 const MAX_ROUNDS = 5; // Safety limit — prevent infinite loops
 const MAX_HISTORY = 10; // Keep last 10 message pairs (20 messages total)
 const SESSION_TTL = 30 * 60 * 1000; // 30 minutes session timeout
@@ -252,7 +268,7 @@ export function createAgentService(
   yfService: YFService,
   marketPulseService: MarketPulseService,
 ): AgentService {
-  const isConfigured = Boolean(GEMINI_API_KEY);
+  const isConfigured = GEMINI_API_KEYS.length > 0;
   const executors = createToolExecutors(analystDataService, yfService, marketPulseService);
 
   return {
@@ -264,7 +280,13 @@ export function createAgentService(
       // Get conversation history for this session
       const history = sessionId ? getSession(sessionId).messages : [];
 
-      const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+      // Try each API key (rotation on 429 errors)
+      const keysToTry = GEMINI_API_KEYS.length;
+      let lastError: any = null;
+
+      for (let keyAttempt = 0; keyAttempt < keysToTry; keyAttempt++) {
+        const apiKey = getNextKey();
+        const genAI = new GoogleGenerativeAI(apiKey);
       
       // Try models in order (fallback if one is overloaded)
       const modelNames = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
@@ -370,8 +392,9 @@ Rules:
         break; // success — exit retry loop
         }
       }
+      } // end key rotation loop
 
-      console.error('[Agent] All models failed:', lastError?.message || lastError);
+      console.error('[Agent] All keys and models exhausted:', lastError?.message || lastError);
       return null;
     },
   };

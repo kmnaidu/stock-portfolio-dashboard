@@ -7,7 +7,21 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { CacheService } from './cacheService.js';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_API_KEYS = [
+  process.env.GEMINI_API_KEY || '',
+  process.env.GEMINI_API_KEY_2 || '',
+  process.env.GEMINI_API_KEY_3 || '',
+  process.env.GEMINI_API_KEY_4 || '',
+].filter(k => k.length > 0);
+
+let aiAnalysisKeyIndex = 0;
+function getNextAIKey(): string {
+  if (GEMINI_API_KEYS.length === 0) return '';
+  const key = GEMINI_API_KEYS[aiAnalysisKeyIndex];
+  aiAnalysisKeyIndex = (aiAnalysisKeyIndex + 1) % GEMINI_API_KEYS.length;
+  return key;
+}
+
 const TTL_AI_ANALYSIS = 6 * 60 * 60; // Cache AI responses for 6 hours
 
 export interface AIAnalysisInput {
@@ -57,12 +71,12 @@ export interface AIAnalysisService {
 }
 
 export function createAIAnalysisService(cache: CacheService): AIAnalysisService {
-  const isConfigured = Boolean(GEMINI_API_KEY);
+  const isConfigured = GEMINI_API_KEYS.length > 0;
 
   if (!isConfigured) {
     console.log('⚠ GEMINI_API_KEY not set — AI analysis disabled');
   } else {
-    console.log('✓ Google Gemini AI configured');
+    console.log(`✓ Google Gemini AI configured (${GEMINI_API_KEYS.length} keys)`);
   }
 
   return {
@@ -79,7 +93,7 @@ export function createAIAnalysisService(cache: CacheService): AIAnalysisService 
       if (cached) return cached;
 
       try {
-        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+        const genAI = new GoogleGenerativeAI(getNextAIKey());
         
         // Try models in order of preference (fallback chain)
         const modelNames = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
