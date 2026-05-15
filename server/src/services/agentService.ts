@@ -21,6 +21,57 @@ import { computeSupportResistance } from './supportResistanceService.js';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const MAX_ROUNDS = 5; // Safety limit — prevent infinite loops
+const MAX_HISTORY = 10; // Keep last 10 message pairs (20 messages total)
+const SESSION_TTL = 30 * 60 * 1000; // 30 minutes session timeout
+
+// ── Session Memory Store ─────────────────────────────────────
+// Stores conversation history per session. Each session has a list
+// of {role, parts} messages that Gemini understands.
+// Sessions expire after 30 minutes of inactivity.
+
+interface SessionMessage {
+  role: 'user' | 'model';
+  parts: { text: string }[];
+}
+
+interface Session {
+  messages: SessionMessage[];
+  lastAccess: number;
+}
+
+const sessions = new Map<string, Session>();
+
+// Clean expired sessions every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  sessions.forEach((session, id) => {
+    if (now - session.lastAccess > SESSION_TTL) {
+      sessions.delete(id);
+    }
+  });
+}, 5 * 60 * 1000);
+
+function getSession(sessionId: string): Session {
+  let session = sessions.get(sessionId);
+  if (!session) {
+    session = { messages: [], lastAccess: Date.now() };
+    sessions.set(sessionId, session);
+  }
+  session.lastAccess = Date.now();
+  return session;
+}
+
+function addToSession(sessionId: string, userMessage: string, agentResponse: string) {
+  const session = getSession(sessionId);
+  session.messages.push(
+    { role: 'user', parts: [{ text: userMessage }] },
+    { role: 'model', parts: [{ text: agentResponse }] },
+  );
+  // Keep only last N pairs to avoid exceeding context window
+  if (session.messages.length > MAX_HISTORY * 2) {
+    session.messages = session.messages.slice(-MAX_HISTORY * 2);
+  }
+}
 
 // ── STEP 1: Define the tools (the "menu" for Gemini) ────────
 
@@ -187,10 +238,11 @@ export interface AgentResponse {
   toolsUsed: string[];
   rounds: number;
   model: string;
+  sessionId?: string;
 }
 
 export interface AgentService {
-  ask(question: string): Promise<AgentResponse | null>;
+  ask(question: string, sessionId?: string): Promise<AgentResponse | null>;
   isAvailable(): boolean;
 }
 
@@ -206,8 +258,11 @@ export function createAgentService(
   return {
     isAvailable() { return isConfigured; },
 
-    async ask(question: string): Promise<AgentResponse | null> {
+    async ask(question: string, sessionId?: string): Promise<AgentResponse | null> {
       if (!isConfigured) return null;
+
+      // Get conversation history for this session
+      const history = sessionId ? getSession(sessionId).messages : [];
 
       const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
       
@@ -239,7 +294,7 @@ Rules:
 - ALWAYS respond in English only. Never include any other language in your response.`,
           });
 
-          const chat = model.startChat();
+          const chat = model.startChat({ history });
           const toolsUsed: string[] = [];
           let rounds = 0;
 
@@ -282,13 +337,30 @@ Rules:
           if (!rawText) continue;
 
           // Filter out any leaked "thinking" text (non-Latin characters at the start)
-          const finalText = rawText.replace(/^[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef，。！？、；：""''（）【】]+[^\n]*\n?/gm, '').trim();
+          // Also filter out raw tool response JSON that Gemini sometimes echoes
+          let finalText = rawText
+            .replace(/^[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef，。！？、；：""''（）【】]+[^\n]*\n?/gm, '')
+            .replace(/\{"[\w_]+_response":\s*\{[^}]*\}\}\s*/g, '')
+            .replace(/\{"\w+":\s*"\\"\{[^}]*\}\\?"[^}]*\}\s*/g, '')
+            .trim();
+
+          // Remove any remaining lines that look like raw JSON tool responses
+          finalText = finalText.split('\n').filter(line => {
+            const trimmed = line.trim();
+            return !(trimmed.startsWith('{"get_') || trimmed.startsWith('{"result"'));
+          }).join('\n').trim();
+
+          // Save to session memory (so next question has context)
+          if (sessionId) {
+            addToSession(sessionId, question, finalText);
+          }
 
           return {
             answer: finalText,
             toolsUsed,
             rounds,
             model: modelName,
+            sessionId: sessionId || undefined,
           };
         } catch (err) {
           lastError = err;

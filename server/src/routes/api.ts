@@ -747,8 +747,9 @@ export function createApiRouter(services: {
   });
 
   // POST /api/agent — Tool-calling AI agent that answers stock questions
+  // Supports conversation memory via optional sessionId
   router.post('/agent', async (req: Request, res: Response) => {
-    const { question } = req.body ?? {};
+    const { question, sessionId } = req.body ?? {};
     if (!question || typeof question !== 'string') {
       res.status(400).json({ error: 'Expected { question: "your question here" }' });
       return;
@@ -760,7 +761,7 @@ export function createApiRouter(services: {
     }
 
     try {
-      const result = await agentService.ask(question);
+      const result = await agentService.ask(question, sessionId);
       if (!result) {
         res.status(503).json({ error: 'All AI models are currently overloaded. Please try again in 30 seconds.' });
         return;
