@@ -88,24 +88,67 @@ export default function AgentChat() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/agent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, sessionId }),
-      });
+      // Use streaming endpoint (SSE)
+      const url = `${API_BASE}/api/agent/stream?question=${encodeURIComponent(question)}&sessionId=${encodeURIComponent(sessionId)}`;
+      const response = await fetch(url);
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || err.error || 'Agent failed');
+      if (!response.ok) {
+        throw new Error('Agent failed');
       }
 
-      const data = await res.json();
-      setMessages(prev => [...prev, {
-        role: 'agent',
-        text: data.answer,
-        toolsUsed: data.toolsUsed,
-        rounds: data.rounds,
-      }]);
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let toolsUsed: string[] = [];
+      let rounds = 0;
+
+      // Add empty agent message that we'll fill progressively
+      setMessages(prev => [...prev, { role: 'agent', text: '' }]);
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const jsonStr = line.slice(6).trim();
+            if (!jsonStr) continue;
+
+            try {
+              const data = JSON.parse(jsonStr);
+              if (data.text) {
+                fullText += data.text;
+                // Update the last message with accumulated text
+                setMessages(prev => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = { role: 'agent', text: fullText };
+                  return updated;
+                });
+              }
+              if (data.done) {
+                toolsUsed = data.toolsUsed || [];
+                rounds = data.rounds || 0;
+              }
+              if (data.error) {
+                throw new Error(data.error);
+              }
+            } catch { /* skip malformed JSON */ }
+          }
+        }
+      }
+
+      // Final update with metadata
+      if (toolsUsed.length > 0) {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'agent', text: fullText, toolsUsed, rounds };
+          return updated;
+        });
+      }
     } catch (err) {
       setMessages(prev => [...prev, {
         role: 'agent',

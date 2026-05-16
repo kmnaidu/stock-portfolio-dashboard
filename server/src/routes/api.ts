@@ -746,6 +746,50 @@ export function createApiRouter(services: {
     }
   });
 
+  // GET /api/agent/stream — Streaming AI agent (Server-Sent Events)
+  // Returns text word-by-word as Gemini generates it
+  router.get('/agent/stream', async (req: Request, res: Response) => {
+    const question = req.query.question as string;
+    const sessionId = req.query.sessionId as string;
+
+    if (!question) {
+      res.status(400).json({ error: 'Expected ?question=...' });
+      return;
+    }
+
+    if (!agentService.isAvailable()) {
+      res.status(503).json({ error: 'AI agent unavailable' });
+      return;
+    }
+
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable Render's buffering
+    res.flushHeaders();
+
+    try {
+      const result = await agentService.askStream(
+        question,
+        sessionId || 'anonymous',
+        (chunk: string) => {
+          res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
+        },
+      );
+
+      if (result) {
+        res.write(`data: ${JSON.stringify({ done: true, toolsUsed: result.toolsUsed, rounds: result.rounds })}\n\n`);
+      } else {
+        res.write(`data: ${JSON.stringify({ error: 'All models overloaded' })}\n\n`);
+      }
+    } catch (err) {
+      res.write(`data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`);
+    }
+
+    res.end();
+  });
+
   // POST /api/agent — Tool-calling AI agent that answers stock questions
   // Supports conversation memory via optional sessionId
   router.post('/agent', async (req: Request, res: Response) => {

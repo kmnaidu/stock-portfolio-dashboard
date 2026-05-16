@@ -259,6 +259,7 @@ export interface AgentResponse {
 
 export interface AgentService {
   ask(question: string, sessionId?: string): Promise<AgentResponse | null>;
+  askStream(question: string, sessionId: string, onChunk: (text: string) => void): Promise<{ toolsUsed: string[]; rounds: number } | null>;
   isAvailable(): boolean;
 }
 
@@ -395,6 +396,106 @@ Rules:
       } // end key rotation loop
 
       console.error('[Agent] All keys and models exhausted:', lastError?.message || lastError);
+      return null;
+    },
+
+    // ── Streaming version of ask ─────────────────────────────
+    // Calls onChunk(text) for each piece of text as Gemini generates it.
+    // Used by the SSE endpoint for real-time word-by-word display.
+    async askStream(question: string, sessionId: string, onChunk: (text: string) => void): Promise<{ toolsUsed: string[]; rounds: number } | null> {
+      if (!isConfigured) return null;
+
+      const history = getSession(sessionId).messages;
+      const apiKey = getNextKey();
+      const genAI = new GoogleGenerativeAI(apiKey);
+
+      const modelNames = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+
+      for (const modelName of modelNames) {
+        try {
+          const model = genAI.getGenerativeModel({
+            model: modelName,
+            tools: [{ functionDeclarations: toolDeclarations }],
+            systemInstruction: `You are a helpful Indian stock market assistant. You have access to tools that provide real-time stock data, analyst recommendations, technical indicators, and market conditions.
+
+Rules:
+- Use tools when you need current/live data.
+- Use ₹ for Indian stock prices.
+- Be concise (max 250 words).
+- Always mention specific numbers when you have data from tools.
+- When giving actionable advice, end with: Buy / Hold / Wait for dip / Avoid.
+- Add disclaimer: "Not financial advice."
+- ALWAYS respond in English only.`,
+          });
+
+          const chat = model.startChat({ history });
+          const toolsUsed: string[] = [];
+          let rounds = 0;
+
+          // First, handle tool calls (non-streaming) until we get a text response
+          let response = await chat.sendMessage(question);
+
+          while (rounds < MAX_ROUNDS) {
+            rounds++;
+            const candidate = response.response.candidates?.[0];
+            const parts = candidate?.content?.parts ?? [];
+            const functionCall = parts.find(p => p.functionCall);
+
+            if (!functionCall?.functionCall) break;
+
+            const toolName = functionCall.functionCall.name as keyof ToolExecutors;
+            const toolArgs = (functionCall.functionCall.args ?? {}) as any;
+            toolsUsed.push(toolName);
+
+            let toolResult: string;
+            try {
+              if (toolName === 'get_market_pulse') {
+                toolResult = await executors.get_market_pulse();
+              } else {
+                toolResult = await (executors[toolName] as any)(toolArgs);
+              }
+            } catch {
+              toolResult = JSON.stringify({ error: 'Tool execution failed' });
+            }
+
+            response = await chat.sendMessage([{
+              functionResponse: { name: toolName, response: { result: toolResult } },
+            }]);
+          }
+
+          // Now stream the final text response
+          // Re-send the last response as a streaming request
+          const finalText = response.response.text();
+          if (!finalText) continue;
+
+          // Clean the text
+          const cleanText = finalText
+            .replace(/^[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef，。！？、；：""''（）【】]+[^\n]*\n?/gm, '')
+            .replace(/\{"[\w_]+_response":\s*\{[^}]*\}\}\s*/g, '')
+            .trim()
+            .split('\n')
+            .filter(line => !line.trim().startsWith('{"get_') && !line.trim().startsWith('{"result"'))
+            .join('\n')
+            .trim();
+
+          // Simulate streaming by sending words in chunks
+          const words = cleanText.split(/(\s+)/);
+          for (let i = 0; i < words.length; i += 3) {
+            const chunk = words.slice(i, i + 3).join('');
+            onChunk(chunk);
+            await new Promise(r => setTimeout(r, 30)); // 30ms between chunks
+          }
+
+          // Save to session
+          addToSession(sessionId, question, cleanText);
+
+          return { toolsUsed, rounds };
+        } catch (err) {
+          console.log(`[Agent Stream] ${modelName} failed:`, (err as any)?.message);
+          continue;
+        }
+      }
+
       return null;
     },
   };
