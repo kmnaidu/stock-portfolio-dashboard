@@ -36,17 +36,25 @@ const marketPulseService = createMarketPulseService(cache);
 const aiAnalysisService = createAIAnalysisService(cache);
 const agentService = createAgentService(cache, analystDataService, yfService, marketPulseService);
 
-// Check Python service availability on startup
-analystDataService.isAvailable().then((available) => {
-  if (available) {
-    console.log('✓ Python yfinance microservice detected');
-    // Auto-prewarm: fetch analyst data for top stocks on startup
-    autoPrewarm();
-  } else {
-    console.log('⚠ Python yfinance microservice not available. Real analyst data disabled.');
-    console.log('  To enable: cd python-service && pip3 install -r requirements.txt && python3 app.py');
+// Check Python service availability on startup (with retry for Render cold start)
+async function checkPythonAndPrewarm() {
+  // Try up to 3 times with 30-second delays (Python service may still be waking up)
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const available = await analystDataService.isAvailable();
+    if (available) {
+      console.log(`✓ Python yfinance microservice detected (attempt ${attempt})`);
+      autoPrewarm();
+      return;
+    }
+    if (attempt < 3) {
+      console.log(`⚠ Python service not ready (attempt ${attempt}/3). Retrying in 30s...`);
+      await new Promise(r => setTimeout(r, 30000));
+    }
   }
-});
+  console.log('⚠ Python yfinance microservice not available after 3 attempts. Analyst data disabled.');
+}
+
+checkPythonAndPrewarm();
 
 // Auto-prewarm analyst data on server startup (runs in background)
 async function autoPrewarm() {
