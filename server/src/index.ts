@@ -38,20 +38,20 @@ const agentService = createAgentService(cache, analystDataService, yfService, ma
 
 // Check Python service availability on startup (with retry for Render cold start)
 async function checkPythonAndPrewarm() {
-  // Try up to 3 times with 30-second delays (Python service may still be waking up)
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  // Try up to 5 times with 45-second delays (Python service needs time to wake on Render)
+  for (let attempt = 1; attempt <= 5; attempt++) {
     const available = await analystDataService.isAvailable();
     if (available) {
       console.log(`✓ Python yfinance microservice detected (attempt ${attempt})`);
       autoPrewarm();
       return;
     }
-    if (attempt < 3) {
-      console.log(`⚠ Python service not ready (attempt ${attempt}/3). Retrying in 30s...`);
-      await new Promise(r => setTimeout(r, 30000));
+    if (attempt < 5) {
+      console.log(`⚠ Python service not ready (attempt ${attempt}/5). Retrying in 45s...`);
+      await new Promise(r => setTimeout(r, 45000));
     }
   }
-  console.log('⚠ Python yfinance microservice not available after 3 attempts. Analyst data disabled.');
+  console.log('⚠ Python yfinance microservice not available after 5 attempts. Analyst data disabled.');
 }
 
 checkPythonAndPrewarm();
