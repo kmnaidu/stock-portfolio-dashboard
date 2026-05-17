@@ -39,12 +39,44 @@ const agentService = createAgentService(cache, analystDataService, yfService, ma
 // Check Python service availability on startup
 analystDataService.isAvailable().then((available) => {
   if (available) {
-    console.log('✓ Python yfinance microservice detected at port 5001');
+    console.log('✓ Python yfinance microservice detected');
+    // Auto-prewarm: fetch analyst data for top stocks on startup
+    autoPrewarm();
   } else {
     console.log('⚠ Python yfinance microservice not available. Real analyst data disabled.');
     console.log('  To enable: cd python-service && pip3 install -r requirements.txt && python3 app.py');
   }
 });
+
+// Auto-prewarm analyst data on server startup (runs in background)
+async function autoPrewarm() {
+  const TOP_STOCKS = [
+    'RELIANCE.NS', 'HDFCBANK.NS', 'TCS.NS', 'SBIN.NS', 'ICICIBANK.NS',
+    'HAL.NS', 'BHARTIARTL.NS', 'TATAMOTORS.NS', 'TVSMOTOR.NS', 'DABUR.NS',
+    'INFY.NS', 'ITC.NS', 'LT.NS', 'INDHOTEL.NS', 'TATAPOWER.NS',
+  ];
+
+  console.log(`[Prewarm] Starting auto-prewarm for ${TOP_STOCKS.length} stocks...`);
+  let success = 0;
+  let failed = 0;
+
+  for (const symbol of TOP_STOCKS) {
+    try {
+      const data = await analystDataService.getAnalystData(symbol);
+      if (data) {
+        success++;
+      } else {
+        failed++;
+      }
+    } catch {
+      failed++;
+    }
+    // Small delay between requests to avoid overwhelming the Python service
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  console.log(`[Prewarm] Complete: ${success} success, ${failed} failed`);
+}
 
 // Wire up API routes
 const apiRouter = createApiRouter({
