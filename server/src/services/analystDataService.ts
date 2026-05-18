@@ -7,7 +7,7 @@
 import type { CacheService } from './cacheService.js';
 
 const PYTHON_SERVICE_BASE = process.env.PYTHON_SERVICE_URL || 'http://localhost:5001';
-const TTL_ANALYST = 6 * 60 * 60; // 6 hours
+const TTL_ANALYST = 24 * 60 * 60; // 24 hours — analyst data doesn't change frequently
 
 export interface AnalystData {
   symbol: string;
