@@ -15,6 +15,7 @@ import type { AnalystDataService } from '../services/analystDataService.js';
 import type { MarketPulseService } from '../services/marketPulseService.js';
 import type { AIAnalysisService } from '../services/aiAnalysisService.js';
 import type { AgentService } from '../services/agentService.js';
+import type { MultiAgentService } from '../services/multiAgentService.js';
 
 const VALID_RANGES = new Set<string>(['1d', '1w', '1mo', '3mo', '6mo', '1y']);
 
@@ -52,10 +53,12 @@ export function createApiRouter(services: {
   marketPulseService: MarketPulseService;
   aiAnalysisService: AIAnalysisService;
   agentService: AgentService;
+  multiAgentService: MultiAgentService;
   cache: CacheService;
 }): Router {
   const { yfService, marketStatusService, predictionEngine, analystDataService, marketPulseService, aiAnalysisService } = services;
   const agentService = services.agentService;
+  const multiAgentService = services.multiAgentService;
   const router = Router();
 
   // Track all stock symbols ever requested by users (for dynamic prewarm)
@@ -744,6 +747,39 @@ export function createApiRouter(services: {
         message: err instanceof Error ? err.message : 'Unknown error',
       });
     }
+  });
+
+  // GET /api/agent/deep-analysis — Multi-agent deep analysis (SSE streaming)
+  router.get('/agent/deep-analysis', async (req: Request, res: Response) => {
+    const symbol = req.query.symbol as string;
+
+    if (!symbol) {
+      res.status(400).json({ error: 'Expected ?symbol=RELIANCE.NS' });
+      return;
+    }
+
+    if (!multiAgentService.isAvailable()) {
+      res.status(503).json({ error: 'Multi-agent unavailable — no Gemini keys' });
+      return;
+    }
+
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    try {
+      await multiAgentService.deepAnalysis(symbol, (chunk: string) => {
+        res.write(`data: ${JSON.stringify({ text: chunk + '\n' })}\n\n`);
+      });
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    } catch {
+      res.write(`data: ${JSON.stringify({ error: 'Deep analysis failed' })}\n\n`);
+    }
+
+    res.end();
   });
 
   // GET /api/agent/stream — Streaming AI agent (Server-Sent Events)

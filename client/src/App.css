@@ -2853,6 +2853,17 @@ main {
   cursor: not-allowed;
 }
 
+.agent-deep-btn {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  font-weight: 700;
+}
+
+.agent-deep-btn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.18);
+}
+
 .agent-quick-btn {
   font-size: 0.8rem;
   font-weight: 600;

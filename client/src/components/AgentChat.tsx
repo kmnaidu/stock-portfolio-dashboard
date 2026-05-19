@@ -68,6 +68,7 @@ export default function AgentChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [deepAnalysisMode, setDeepAnalysisMode] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID()); // Unique per chat session
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -81,6 +82,13 @@ export default function AgentChat() {
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
+
+    // If in deep analysis mode, route to multi-agent
+    if (deepAnalysisMode) {
+      handleDeepAnalysisSubmit(input.trim());
+      setInput('');
+      return;
+    }
 
     const question = input.trim();
     setInput('');
@@ -102,7 +110,171 @@ export default function AgentChat() {
       let toolsUsed: string[] = [];
       let rounds = 0;
 
-      // Add empty agent message that we'll fill progressively
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const jsonStr = line.slice(6).trim();
+            if (!jsonStr) continue;
+
+            try {
+              const data = JSON.parse(jsonStr);
+              if (data.text) {
+                if (!fullText) {
+                  // First chunk — add the agent message
+                  setMessages(prev => [...prev, { role: 'agent', text: data.text }]);
+                } else {
+                  // Subsequent chunks — update last message
+                  setMessages(prev => {
+                    const updated = [...prev];
+                    updated[updated.length - 1] = { role: 'agent', text: fullText + data.text };
+                    return updated;
+                  });
+                }
+                fullText += data.text;
+              }
+              if (data.done) {
+                toolsUsed = data.toolsUsed || [];
+                rounds = data.rounds || 0;
+              }
+              if (data.error) {
+                throw new Error(data.error);
+              }
+            } catch { /* skip malformed JSON */ }
+          }
+        }
+      }
+
+      // If no text received at all, show error
+      if (!fullText) {
+        // Fallback: try non-streaming endpoint
+        try {
+          const fallbackRes = await fetch(`${API_BASE}/api/agent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question, sessionId }),
+          });
+          if (fallbackRes.ok) {
+            const fallbackData = await fallbackRes.json();
+            setMessages(prev => [...prev, {
+              role: 'agent',
+              text: fallbackData.answer,
+              toolsUsed: fallbackData.toolsUsed,
+              rounds: fallbackData.rounds,
+            }]);
+          } else {
+            setMessages(prev => [...prev, {
+              role: 'agent',
+              text: '❌ All AI models are currently overloaded. Please try again in 30 seconds.',
+            }]);
+          }
+        } catch {
+          setMessages(prev => [...prev, {
+            role: 'agent',
+            text: '❌ Agent unavailable. Please try again.',
+          }]);
+        }
+      } else if (toolsUsed.length > 0) {
+        // Final update with metadata
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'agent', text: fullText, toolsUsed, rounds };
+          return updated;
+        });
+      }
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        role: 'agent',
+        text: `❌ ${err instanceof Error ? err.message : 'Something went wrong. Try again.'}`,
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Quick action: Deep Analysis (Multi-Agent)
+  const handleDeepAnalysis = () => {
+    if (loading) return;
+    if (deepAnalysisMode) {
+      // Toggle OFF — back to normal agent
+      setDeepAnalysisMode(false);
+      setMessages([{ role: 'agent', text: '💬 Back to normal chat mode. Ask any question.' }]);
+    } else {
+      // Toggle ON — enter deep analysis mode
+      setDeepAnalysisMode(true);
+      setMessages([{ role: 'agent', text: '🔬 Enter a stock symbol below (e.g., RELIANCE.NS) and press Send for deep multi-agent analysis.' }]);
+    }
+  };
+
+  // Handle deep analysis submission
+  const handleDeepAnalysisSubmit = async (symbol: string) => {
+    let sym = symbol.trim().toUpperCase();
+    if (!sym) return;
+
+    // Remove extra words like "WITH NEWS", "ANALYSIS" etc
+    sym = sym.replace(/\s*(WITH|AND|FOR|ANALYSIS|NEWS|STOCK|PRICE)\s*/gi, '').trim();
+
+    // Common name mappings (check BEFORE adding .NS)
+    const nameMap: Record<string, string> = {
+      'INFOSYS': 'INFY.NS',
+      'ICICI': 'ICICIBANK.NS',
+      'ICICI BANK': 'ICICIBANK.NS',
+      'ICICIBANK': 'ICICIBANK.NS',
+      'HDFC': 'HDFCBANK.NS',
+      'HDDFC': 'HDFCBANK.NS',
+      'HDFC BANK': 'HDFCBANK.NS',
+      'HDFCBANK': 'HDFCBANK.NS',
+      'TATA MOTORS': 'TATAMOTORS.NS',
+      'TATAMOTORS': 'TATAMOTORS.NS',
+      'TATA POWER': 'TATAPOWER.NS',
+      'TATAPOWER': 'TATAPOWER.NS',
+      'BHARTI AIRTEL': 'BHARTIARTL.NS',
+      'BHARTIARTL': 'BHARTIARTL.NS',
+      'AIRTEL': 'BHARTIARTL.NS',
+      'SBI': 'SBIN.NS',
+      'SBIN': 'SBIN.NS',
+      'STATE BANK': 'SBIN.NS',
+      'RELIANCE': 'RELIANCE.NS',
+      'TCS': 'TCS.NS',
+      'INFY': 'INFY.NS',
+      'WIPRO': 'WIPRO.NS',
+      'HAL': 'HAL.NS',
+      'ITC': 'ITC.NS',
+      'LT': 'LT.NS',
+      'DABUR': 'DABUR.NS',
+      'INDHOTEL': 'INDHOTEL.NS',
+      'TVSMOTOR': 'TVSMOTOR.NS',
+      'BEL': 'BEL.NS',
+    };
+
+    // Check map with raw input (without .NS)
+    const rawName = sym.replace('.NS', '').replace('.BO', '');
+    if (nameMap[rawName]) {
+      sym = nameMap[rawName];
+    } else if (!sym.includes('.')) {
+      sym = sym + '.NS';
+    }
+
+    // Keep deepAnalysisMode ON so user can type another stock name
+    setMessages([{ role: 'user', text: `🔬 Deep Analysis: ${sym}` }]);
+    setLoading(true);
+
+    try {
+      const url = `${API_BASE}/api/agent/deep-analysis?symbol=${encodeURIComponent(sym)}`;
+      const response = await fetch(url);
+
+      if (!response.ok) throw new Error('Deep analysis failed');
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+
       setMessages(prev => [...prev, { role: 'agent', text: '' }]);
 
       if (reader) {
@@ -122,37 +294,22 @@ export default function AgentChat() {
               const data = JSON.parse(jsonStr);
               if (data.text) {
                 fullText += data.text;
-                // Update the last message with accumulated text
                 setMessages(prev => {
                   const updated = [...prev];
                   updated[updated.length - 1] = { role: 'agent', text: fullText };
                   return updated;
                 });
               }
-              if (data.done) {
-                toolsUsed = data.toolsUsed || [];
-                rounds = data.rounds || 0;
-              }
-              if (data.error) {
-                throw new Error(data.error);
-              }
-            } catch { /* skip malformed JSON */ }
+              if (data.done) break;
+              if (data.error) throw new Error(data.error);
+            } catch { /* skip */ }
           }
         }
-      }
-
-      // Final update with metadata
-      if (toolsUsed.length > 0) {
-        setMessages(prev => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: 'agent', text: fullText, toolsUsed, rounds };
-          return updated;
-        });
       }
     } catch (err) {
       setMessages(prev => [...prev, {
         role: 'agent',
-        text: `❌ ${err instanceof Error ? err.message : 'Something went wrong. Try again.'}`,
+        text: `❌ ${err instanceof Error ? err.message : 'Deep analysis failed'}`,
       }]);
     } finally {
       setLoading(false);
@@ -162,6 +319,7 @@ export default function AgentChat() {
   // Quick action: Fetch Index Futures directly (no LLM)
   const handleIndexFutures = async () => {
     if (loading) return;
+    setDeepAnalysisMode(false);
     setMessages([{ role: 'user', text: '📈 Index Futures' }]);
     setLoading(true);
 
@@ -192,6 +350,7 @@ export default function AgentChat() {
   // Quick action: Fetch Commodity Futures directly (no LLM)
   const handleCommodityFutures = async () => {
     if (loading) return;
+    setDeepAnalysisMode(false);
     setMessages([{ role: 'user', text: '🛢️ Commodity Futures' }]);
     setLoading(true);
 
@@ -222,6 +381,7 @@ export default function AgentChat() {
   // Quick action: Fetch Nifty levels directly (no LLM)
   const handleNiftyLevels = async () => {
     if (loading) return;
+    setDeepAnalysisMode(false);
     setMessages([{ role: 'user', text: '📐 Nifty 50 Key Levels' }]);
     setLoading(true);
 
@@ -287,6 +447,7 @@ export default function AgentChat() {
             <button className="agent-quick-btn-sm" onClick={handleNiftyLevels} disabled={loading}>📐 Nifty Levels</button>
             <button className="agent-quick-btn-sm" onClick={handleIndexFutures} disabled={loading}>📈 Futures</button>
             <button className="agent-quick-btn-sm" onClick={handleCommodityFutures} disabled={loading}>🛢️ Commodities</button>
+            <button className="agent-quick-btn-sm agent-deep-btn" onClick={handleDeepAnalysis} disabled={loading}>{deepAnalysisMode ? '💬 Normal Chat' : '🔬 Deep Analysis'}</button>
           </div>
 
           <div className="agent-messages" ref={messagesContainerRef}>
@@ -329,7 +490,7 @@ export default function AgentChat() {
             <input
               type="text"
               className="agent-input"
-              placeholder="Ask about any stock..."
+              placeholder={deepAnalysisMode ? "Enter stock symbol (e.g., RELIANCE.NS)..." : "Ask about any stock..."}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
