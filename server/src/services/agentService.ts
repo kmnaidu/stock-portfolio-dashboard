@@ -18,6 +18,7 @@ import type { AnalystDataService } from './analystDataService.js';
 import type { YFService } from './yahooFinanceService.js';
 import type { MarketPulseService } from './marketPulseService.js';
 import { computeSupportResistance } from './supportResistanceService.js';
+import { logAICall, estimateTokens } from './aiObservability.js';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_API_KEYS = [
@@ -278,6 +279,8 @@ export function createAgentService(
     async ask(question: string, sessionId?: string): Promise<AgentResponse | null> {
       if (!isConfigured) return null;
 
+      const askStartTime = Date.now();
+
       // Get conversation history for this session
       const history = sessionId ? getSession(sessionId).messages : [];
 
@@ -378,6 +381,20 @@ Rules:
             addToSession(sessionId, question, finalText);
           }
 
+          // Log successful AI call
+          logAICall({
+            type: 'agent',
+            question,
+            model: modelName,
+            apiKeyIndex: currentKeyIndex,
+            toolsUsed,
+            rounds,
+            responseTimeMs: Date.now() - askStartTime,
+            success: true,
+            sessionId,
+            tokensEstimate: estimateTokens(question + finalText),
+          });
+
           return {
             answer: finalText,
             toolsUsed,
@@ -387,6 +404,19 @@ Rules:
           };
         } catch (err) {
           lastError = err;
+          logAICall({
+            type: 'agent',
+            question,
+            model: modelName,
+            apiKeyIndex: currentKeyIndex,
+            toolsUsed: [],
+            rounds: 0,
+            responseTimeMs: Date.now() - askStartTime,
+            success: false,
+            error: (err as any)?.message || 'unknown',
+            sessionId,
+            tokensEstimate: 0,
+          });
           console.log(`[Agent] ${modelName} attempt ${attempt + 1} failed, trying next...`);
           continue;
         }

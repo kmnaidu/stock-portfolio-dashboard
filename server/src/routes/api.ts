@@ -16,6 +16,7 @@ import type { MarketPulseService } from '../services/marketPulseService.js';
 import type { AIAnalysisService } from '../services/aiAnalysisService.js';
 import type { AgentService } from '../services/agentService.js';
 import type { MultiAgentService } from '../services/multiAgentService.js';
+import { getAIStats, getAILogs } from '../services/aiObservability.js';
 
 const VALID_RANGES = new Set<string>(['1d', '1w', '1mo', '3mo', '6mo', '1y']);
 
@@ -747,6 +748,17 @@ export function createApiRouter(services: {
         message: err instanceof Error ? err.message : 'Unknown error',
       });
     }
+  });
+
+  // GET /api/ai-stats — AI observability dashboard
+  router.get('/ai-stats', (_req: Request, res: Response) => {
+    res.json(getAIStats());
+  });
+
+  // GET /api/ai-logs — Recent AI call logs (for debugging)
+  router.get('/ai-logs', (req: Request, res: Response) => {
+    const limit = parseInt(req.query.limit as string) || 50;
+    res.json(getAILogs(limit));
   });
 
   // GET /api/agent/deep-analysis — Multi-agent deep analysis (SSE streaming)

@@ -17,6 +17,7 @@ import type { AnalystDataService } from './analystDataService.js';
 import type { YFService } from './yahooFinanceService.js';
 import type { MarketPulseService } from './marketPulseService.js';
 import { computeSupportResistance } from './supportResistanceService.js';
+import { logAICall, estimateTokens } from './aiObservability.js';
 
 // ── API Key Rotation (shared with agentService) ──────────────
 const GEMINI_API_KEYS = [
@@ -35,6 +36,7 @@ function getKey(): string {
 
 // ── Helper: Call Gemini with focused prompt ───────────────────
 async function callGemini(systemPrompt: string, userMessage: string): Promise<string> {
+  const startTime = Date.now();
   const genAI = new GoogleGenerativeAI(getKey());
   const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
 
@@ -46,8 +48,33 @@ async function callGemini(systemPrompt: string, userMessage: string): Promise<st
       });
       const result = await model.generateContent(userMessage);
       const text = result.response.text();
-      if (text) return text.trim();
+      if (text) {
+        logAICall({
+          type: 'multi-agent',
+          question: userMessage.slice(0, 100),
+          model: modelName,
+          apiKeyIndex: keyIndex - 1,
+          toolsUsed: [],
+          rounds: 1,
+          responseTimeMs: Date.now() - startTime,
+          success: true,
+          tokensEstimate: estimateTokens(systemPrompt + userMessage + text),
+        });
+        return text.trim();
+      }
     } catch (err) {
+      logAICall({
+        type: 'multi-agent',
+        question: userMessage.slice(0, 100),
+        model: modelName,
+        apiKeyIndex: keyIndex - 1,
+        toolsUsed: [],
+        rounds: 1,
+        responseTimeMs: Date.now() - startTime,
+        success: false,
+        error: (err as any)?.message || 'unknown',
+        tokensEstimate: 0,
+      });
       console.log(`[MultiAgent] ${modelName} failed, trying next...`);
       continue;
     }
