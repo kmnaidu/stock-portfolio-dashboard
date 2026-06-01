@@ -279,16 +279,16 @@ export function createMultiAgentService(
 
         // Run all 4 specialist agents in parallel
         onProgress('🔍 Analyst Agent analyzing fundamentals...');
-        onProgress('🔍 Technical Agent analyzing charts...');
-        onProgress('🔍 Risk Agent assessing market conditions...');
-        onProgress('🔍 News Agent scanning headlines...');
+        const analystResult = await analystAgent(symbol, analystDataService);
 
-        const [analystResult, technicalResult, riskResult, newsResult] = await Promise.all([
-          analystAgent(symbol, analystDataService),
-          technicalAgent(symbol, yfService),
-          riskAgent(symbol, marketPulseService),
-          newsAgent(symbol),
-        ]);
+        onProgress('🔍 Technical Agent analyzing charts...');
+        const technicalResult = await technicalAgent(symbol, yfService);
+
+        onProgress('🔍 Risk Agent assessing market conditions...');
+        const riskResult = await riskAgent(symbol, marketPulseService);
+
+        onProgress('🔍 News Agent scanning headlines...');
+        const newsResult = await newsAgent(symbol);
 
         onProgress('');
         onProgress('📊 **Analyst Agent:**');
