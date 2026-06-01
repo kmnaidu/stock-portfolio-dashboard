@@ -83,7 +83,7 @@ export function createAnalystDataService(cache: CacheService): AnalystDataServic
 
     async getAnalystData(symbol: string): Promise<AnalystData | null> {
       const cacheKey = `analyst:${symbol}`;
-      const cached = cache.get<AnalystData>(cacheKey);
+      const cached = await cache.getAsync<AnalystData>(cacheKey);
       if (cached) return cached;
 
       try {
