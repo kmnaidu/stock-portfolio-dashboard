@@ -17,6 +17,7 @@ import type { AIAnalysisService } from '../services/aiAnalysisService.js';
 import type { AgentService } from '../services/agentService.js';
 import type { MultiAgentService } from '../services/multiAgentService.js';
 import { getAIStats, getAILogs } from '../services/aiObservability.js';
+import { seedVectorDB, findSimilarStocks, isVectorDBAvailable } from '../services/vectorService.js';
 
 const VALID_RANGES = new Set<string>(['1d', '1w', '1mo', '3mo', '6mo', '1y']);
 
@@ -748,6 +749,27 @@ export function createApiRouter(services: {
         message: err instanceof Error ? err.message : 'Unknown error',
       });
     }
+  });
+
+  // POST /api/vector/seed — Embed all stocks and store in Vector DB (run once)
+  router.post('/vector/seed', async (_req: Request, res: Response) => {
+    if (!isVectorDBAvailable()) {
+      res.status(503).json({ error: 'Vector DB not configured' });
+      return;
+    }
+    const result = await seedVectorDB();
+    res.json({ message: 'Vector DB seeded', ...result });
+  });
+
+  // GET /api/vector/similar/:symbol — Find similar stocks
+  router.get('/vector/similar/:symbol', async (req: Request, res: Response) => {
+    const symbol = req.params.symbol as string;
+    if (!isVectorDBAvailable()) {
+      res.status(503).json({ error: 'Vector DB not configured' });
+      return;
+    }
+    const similar = await findSimilarStocks(symbol);
+    res.json({ symbol, similar });
   });
 
   // GET /api/ai-stats — AI observability dashboard

@@ -69,6 +69,7 @@ export default function AgentChat() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [deepAnalysisMode, setDeepAnalysisMode] = useState(false);
+  const [similarMode, setSimilarMode] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID()); // Unique per chat session
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -86,6 +87,13 @@ export default function AgentChat() {
     // If in deep analysis mode, route to multi-agent
     if (deepAnalysisMode) {
       handleDeepAnalysisSubmit(input.trim());
+      setInput('');
+      return;
+    }
+
+    // If in similar stocks mode, route to vector search
+    if (similarMode) {
+      handleSimilarSubmit(input.trim());
       setInput('');
       return;
     }
@@ -193,6 +201,55 @@ export default function AgentChat() {
         role: 'agent',
         text: `❌ ${err instanceof Error ? err.message : 'Something went wrong. Try again.'}`,
       }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Quick action: Find Similar Stocks (Vector DB — no LLM)
+  const handleSimilarStocks = async () => {
+    if (loading) return;
+    setMessages([{ role: 'agent', text: '🔍 Enter a stock symbol below to find similar stocks (e.g., RELIANCE.NS):' }]);
+    setSimilarMode(true);
+    setDeepAnalysisMode(false);
+  };
+
+  // Handle similar stocks submission
+  const handleSimilarSubmit = async (symbol: string) => {
+    let sym = symbol.trim().toUpperCase();
+    if (!sym.includes('.')) sym = sym + '.NS';
+
+    // Apply name mapping
+    const rawName = sym.replace('.NS', '').replace('.BO', '');
+    const nameMap: Record<string, string> = {
+      'INFOSYS': 'INFY.NS', 'HDFC': 'HDFCBANK.NS', 'HDDFC': 'HDFCBANK.NS',
+      'ICICI': 'ICICIBANK.NS', 'SBI': 'SBIN.NS', 'AIRTEL': 'BHARTIARTL.NS',
+      'TATA MOTORS': 'TATAMOTORS.NS', 'TATA POWER': 'TATAPOWER.NS',
+    };
+    if (nameMap[rawName]) sym = nameMap[rawName];
+
+    setSimilarMode(false);
+    setMessages([{ role: 'user', text: `🔍 Similar to: ${sym}` }]);
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/vector/similar/${encodeURIComponent(sym)}`);
+      if (!res.ok) throw new Error('Could not find similar stocks');
+      const data = await res.json();
+
+      if (!data.similar || data.similar.length === 0) {
+        setMessages(prev => [...prev, { role: 'agent', text: `No similar stocks found for ${sym}. Try running the seed first or use a different symbol.` }]);
+      } else {
+        let text = `**🔍 Stocks Similar to ${sym}:**\n\n`;
+        data.similar.forEach((s: any, i: number) => {
+          text += `${i + 1}. **${s.symbol}** (${Math.round(s.score * 100)}% match)\n`;
+          text += `   ${s.description}\n\n`;
+        });
+        text += `⚡ Powered by Vector DB (semantic search, no LLM)`;
+        setMessages(prev => [...prev, { role: 'agent', text }]);
+      }
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'agent', text: `❌ ${err instanceof Error ? err.message : 'Search failed'}` }]);
     } finally {
       setLoading(false);
     }
@@ -448,6 +505,7 @@ export default function AgentChat() {
             <button className="agent-quick-btn-sm" onClick={handleIndexFutures} disabled={loading}>📈 Futures</button>
             <button className="agent-quick-btn-sm" onClick={handleCommodityFutures} disabled={loading}>🛢️ Commodities</button>
             <button className="agent-quick-btn-sm agent-deep-btn" onClick={handleDeepAnalysis} disabled={loading}>{deepAnalysisMode ? '💬 Normal Chat' : '🔬 Deep Analysis'}</button>
+            <button className="agent-quick-btn-sm" onClick={handleSimilarStocks} disabled={loading}>🔍 Similar</button>
           </div>
 
           <div className="agent-messages" ref={messagesContainerRef}>
@@ -490,7 +548,7 @@ export default function AgentChat() {
             <input
               type="text"
               className="agent-input"
-              placeholder={deepAnalysisMode ? "Enter stock symbol (e.g., RELIANCE.NS)..." : "Ask about any stock..."}
+              placeholder={deepAnalysisMode ? "Enter stock symbol (e.g., RELIANCE.NS)..." : similarMode ? "Enter stock to find similar (e.g., TCS.NS)..." : "Ask about any stock..."}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
