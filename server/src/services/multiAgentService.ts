@@ -280,12 +280,15 @@ export function createMultiAgentService(
         // Run all 4 specialist agents in parallel
         onProgress('🔍 Analyst Agent analyzing fundamentals...');
         const analystResult = await analystAgent(symbol, analystDataService);
+        await new Promise(r => setTimeout(r, 2000)); // 2s delay between agents
 
         onProgress('🔍 Technical Agent analyzing charts...');
         const technicalResult = await technicalAgent(symbol, yfService);
+        await new Promise(r => setTimeout(r, 2000));
 
         onProgress('🔍 Risk Agent assessing market conditions...');
         const riskResult = await riskAgent(symbol, marketPulseService);
+        await new Promise(r => setTimeout(r, 2000));
 
         onProgress('🔍 News Agent scanning headlines...');
         const newsResult = await newsAgent(symbol);
@@ -307,6 +310,7 @@ export function createMultiAgentService(
         onProgress('📝 **Synthesis Agent** combining all analyses...');
         onProgress('');
 
+        await new Promise(r => setTimeout(r, 2000)); // delay before synthesis
         // Synthesis agent combines everything
         const synthesis = await synthesisAgent(symbol, analystResult, technicalResult, riskResult, newsResult);
 
