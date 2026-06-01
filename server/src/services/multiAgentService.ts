@@ -36,19 +36,37 @@ function getKey(): string {
 
 // ── Helper: Call Gemini with focused prompt ───────────────────
 async function callGemini(systemPrompt: string, userMessage: string): Promise<string> {
-  const startTime = Date.now();
-  const genAI = new GoogleGenerativeAI(getKey());
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
 
-  for (const modelName of models) {
-    try {
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: systemPrompt,
-      });
-      const result = await model.generateContent(userMessage);
-      const text = result.response.text();
-      if (text) {
+  // Try each key + model combination (more resilient)
+  for (let keyAttempt = 0; keyAttempt < Math.min(GEMINI_API_KEYS.length, 3); keyAttempt++) {
+    const startTime = Date.now();
+    const apiKey = getKey();
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    for (const modelName of models) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          systemInstruction: systemPrompt,
+        });
+        const result = await model.generateContent(userMessage);
+        const text = result.response.text();
+        if (text) {
+          logAICall({
+            type: 'multi-agent',
+            question: userMessage.slice(0, 100),
+            model: modelName,
+            apiKeyIndex: keyIndex - 1,
+            toolsUsed: [],
+            rounds: 1,
+            responseTimeMs: Date.now() - startTime,
+            success: true,
+            tokensEstimate: estimateTokens(systemPrompt + userMessage + text),
+          });
+          return text.trim();
+        }
+      } catch (err) {
         logAICall({
           type: 'multi-agent',
           question: userMessage.slice(0, 100),
@@ -57,27 +75,15 @@ async function callGemini(systemPrompt: string, userMessage: string): Promise<st
           toolsUsed: [],
           rounds: 1,
           responseTimeMs: Date.now() - startTime,
-          success: true,
-          tokensEstimate: estimateTokens(systemPrompt + userMessage + text),
+          success: false,
+          error: (err as any)?.message || 'unknown',
+          tokensEstimate: 0,
         });
-        return text.trim();
+        continue; // try next model
       }
-    } catch (err) {
-      logAICall({
-        type: 'multi-agent',
-        question: userMessage.slice(0, 100),
-        model: modelName,
-        apiKeyIndex: keyIndex - 1,
-        toolsUsed: [],
-        rounds: 1,
-        responseTimeMs: Date.now() - startTime,
-        success: false,
-        error: (err as any)?.message || 'unknown',
-        tokensEstimate: 0,
-      });
-      console.log(`[MultiAgent] ${modelName} failed, trying next...`);
-      continue;
     }
+    // All models failed with this key, wait and try next key
+    await new Promise(r => setTimeout(r, 1000));
   }
   return 'Analysis unavailable';
 }
