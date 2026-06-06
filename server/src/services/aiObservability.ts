@@ -10,7 +10,7 @@
 export interface AICallLog {
   id: string;
   timestamp: string;
-  type: 'agent' | 'deep-analysis' | 'ai-analysis' | 'multi-agent';
+  type: 'agent' | 'deep-analysis' | 'ai-analysis' | 'multi-agent' | 'decision-agent';
   question?: string;
   symbol?: string;
   model: string;

@@ -18,6 +18,7 @@ import type { AgentService } from '../services/agentService.js';
 import type { MultiAgentService } from '../services/multiAgentService.js';
 import { getAIStats, getAILogs } from '../services/aiObservability.js';
 import { seedVectorDB, findSimilarStocks, isVectorDBAvailable } from '../services/vectorService.js';
+import { createInvestmentDecisionService } from '../services/investmentDecisionService.js';
 
 const VALID_RANGES = new Set<string>(['1d', '1w', '1mo', '3mo', '6mo', '1y']);
 
@@ -811,6 +812,42 @@ export function createApiRouter(services: {
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
     } catch {
       res.write(`data: ${JSON.stringify({ error: 'Deep analysis failed' })}\n\n`);
+    }
+
+    res.end();
+  });
+
+  // GET /api/agent/investment-decision — LangGraph-style investment decision (SSE)
+  router.get('/agent/investment-decision', async (req: Request, res: Response) => {
+    const symbol = req.query.symbol as string;
+    const target = parseInt(req.query.target as string) || 20;
+    const horizon = (req.query.horizon as string) || '6 months';
+
+    if (!symbol) {
+      res.status(400).json({ error: 'Expected ?symbol=RELIANCE.NS&target=20&horizon=6 months' });
+      return;
+    }
+
+    const decisionService = createInvestmentDecisionService();
+    if (!decisionService.isAvailable()) {
+      res.status(503).json({ error: 'Decision agent unavailable — no Gemini keys' });
+      return;
+    }
+
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    try {
+      await decisionService.runDecision(symbol, target, horizon, (chunk: string) => {
+        res.write(`data: ${JSON.stringify({ text: chunk + '\n' })}\n\n`);
+      });
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    } catch {
+      res.write(`data: ${JSON.stringify({ error: 'Investment decision failed' })}\n\n`);
     }
 
     res.end();

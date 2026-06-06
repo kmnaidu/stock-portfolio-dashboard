@@ -70,6 +70,7 @@ export default function AgentChat() {
   const [loading, setLoading] = useState(false);
   const [deepAnalysisMode, setDeepAnalysisMode] = useState(false);
   const [similarMode, setSimilarMode] = useState(false);
+  const [decisionMode, setDecisionMode] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID()); // Unique per chat session
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -94,6 +95,13 @@ export default function AgentChat() {
     // If in similar stocks mode, route to vector search
     if (similarMode) {
       handleSimilarSubmit(input.trim());
+      setInput('');
+      return;
+    }
+
+    // If in decision mode, route to investment decision
+    if (decisionMode) {
+      handleDecisionSubmit(input.trim());
       setInput('');
       return;
     }
@@ -212,6 +220,88 @@ export default function AgentChat() {
     setMessages([{ role: 'agent', text: '🔍 Enter a stock symbol below to find similar stocks (e.g., RELIANCE.NS):' }]);
     setSimilarMode(true);
     setDeepAnalysisMode(false);
+    setDecisionMode(false);
+  };
+
+  // Quick action: Investment Decision (LangGraph)
+  const handleDecisionMode = () => {
+    if (loading) return;
+    if (decisionMode) {
+      setDecisionMode(false);
+      setMessages([{ role: 'agent', text: '💬 Back to normal chat mode.' }]);
+    } else {
+      setDecisionMode(true);
+      setDeepAnalysisMode(false);
+      setSimilarMode(false);
+      setMessages([{ role: 'agent', text: '🎯 Enter stock symbol (e.g., RELIANCE.NS 20 6months)\n\nFormat: SYMBOL [target%] [timeframe]\nDefaults: 20% target, 6 months' }]);
+    }
+  };
+
+  // Handle decision mode submission
+  const handleDecisionSubmit = async (rawInput: string) => {
+    const parts = rawInput.trim().split(/\s+/);
+    let sym = parts[0].toUpperCase();
+    const target = parts[1] ? parseInt(parts[1]) || 20 : 20;
+    const horizon = parts.slice(2).join(' ') || '6 months';
+
+    // Name mapping
+    const nameMap: Record<string, string> = {
+      'INFOSYS': 'INFY.NS', 'ICICI': 'ICICIBANK.NS', 'ICICIBANK': 'ICICIBANK.NS',
+      'HDFC': 'HDFCBANK.NS', 'HDFCBANK': 'HDFCBANK.NS', 'SBI': 'SBIN.NS',
+      'AIRTEL': 'BHARTIARTL.NS', 'BHARTIARTL': 'BHARTIARTL.NS',
+      'RELIANCE': 'RELIANCE.NS', 'TCS': 'TCS.NS', 'HAL': 'HAL.NS',
+      'TATAPOWER': 'TATAPOWER.NS', 'TATAMOTORS': 'TATAMOTORS.NS',
+      'M&M': 'M&M.NS', 'ETERNAL': 'ETERNAL.NS', 'INFY': 'INFY.NS',
+    };
+    const rawName = sym.replace('.NS', '').replace('.BO', '');
+    if (nameMap[rawName]) sym = nameMap[rawName];
+    else if (!sym.includes('.')) sym = sym + '.NS';
+
+    setMessages([{ role: 'user', text: `🎯 Decision: ${sym} | ${target}% in ${horizon}` }]);
+    setLoading(true);
+
+    try {
+      const url = `${API_BASE}/api/agent/investment-decision?symbol=${encodeURIComponent(sym)}&target=${target}&horizon=${encodeURIComponent(horizon)}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Decision agent failed');
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+
+      setMessages(prev => [...prev, { role: 'agent', text: '' }]);
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const jsonStr = line.slice(6).trim();
+            if (!jsonStr) continue;
+            try {
+              const data = JSON.parse(jsonStr);
+              if (data.text) {
+                fullText += data.text;
+                setMessages(prev => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = { role: 'agent', text: fullText };
+                  return updated;
+                });
+              }
+              if (data.done) break;
+              if (data.error) throw new Error(data.error);
+            } catch { /* skip */ }
+          }
+        }
+      }
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'agent', text: `❌ ${err instanceof Error ? err.message : 'Decision failed'}` }]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Handle similar stocks submission
@@ -505,6 +595,7 @@ export default function AgentChat() {
             <button className="agent-quick-btn-sm" onClick={handleIndexFutures} disabled={loading}>📈 Futures</button>
             <button className="agent-quick-btn-sm" onClick={handleCommodityFutures} disabled={loading}>🛢️ Commodities</button>
             <button className="agent-quick-btn-sm agent-deep-btn" onClick={handleDeepAnalysis} disabled={loading}>{deepAnalysisMode ? '💬 Normal Chat' : '🔬 Deep Analysis'}</button>
+            <button className="agent-quick-btn-sm" onClick={handleDecisionMode} disabled={loading}>{decisionMode ? '💬 Normal' : '🎯 LangGraph'}</button>
             <button className="agent-quick-btn-sm" onClick={handleSimilarStocks} disabled={loading}>🔍 Similar</button>
           </div>
 
@@ -548,7 +639,7 @@ export default function AgentChat() {
             <input
               type="text"
               className="agent-input"
-              placeholder={deepAnalysisMode ? "Enter stock symbol (e.g., RELIANCE.NS)..." : similarMode ? "Enter stock to find similar (e.g., TCS.NS)..." : "Ask about any stock..."}
+              placeholder={deepAnalysisMode ? "Enter stock symbol (e.g., RELIANCE.NS)..." : similarMode ? "Enter stock to find similar (e.g., TCS.NS)..." : decisionMode ? "SYMBOL [target%] [timeframe] (e.g., RELIANCE 20 6 months)..." : "Ask about any stock..."}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
