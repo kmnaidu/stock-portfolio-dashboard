@@ -20,7 +20,6 @@ const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
 const TWILIO_FROM = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886';
 const MY_WHATSAPP = process.env.MY_WHATSAPP || '';
-const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 
 // ── YOUR Stocks to Monitor ───────────────────────────────────
 const MY_STOCKS = [
@@ -102,21 +101,41 @@ async function getMarketData(): Promise<string> {
   ].filter(Boolean).join(' | ');
 }
 
-// ── Call Gemini ──────────────────────────────────────────────
+// ── Call Gemini (multi-key + multi-model fallback) ────────────
+const GEMINI_KEYS = [
+  process.env.GEMINI_API_KEY || '',
+  process.env.GEMINI_API_KEY_2 || '',
+  process.env.GEMINI_API_KEY_3 || '',
+  process.env.GEMINI_API_KEY_4 || '',
+].filter(k => k.length > 0);
+
+const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+
 async function callGemini(prompt: string): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      signal: AbortSignal.timeout(30000),
-    });
-    const json = (await res.json()) as any;
-    return json?.candidates?.[0]?.content?.parts?.[0]?.text || 'Analysis unavailable';
-  } catch (err) {
-    return 'Analysis unavailable: ' + (err as any)?.message;
+  for (const key of GEMINI_KEYS.slice(0, 3)) {
+    for (const model of MODELS) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+          signal: AbortSignal.timeout(30000),
+        });
+        if (!res.ok) {
+          const status = res.status;
+          if (status === 429 || status === 503) continue; // try next model/key
+          continue;
+        }
+        const json = (await res.json()) as any;
+        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) return text;
+      } catch {
+        continue;
+      }
+    }
   }
+  return 'Analysis unavailable (all models overloaded)';
 }
 
 // ── Send WhatsApp ────────────────────────────────────────────
