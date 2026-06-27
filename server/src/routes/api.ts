@@ -642,7 +642,7 @@ export function createApiRouter(services: {
       return;
     }
 
-    const TTL_PREWARM = 24 * 60 * 60; // 1 day — fresher analyst data, Redis handles persistence
+    const TTL_PREWARM = 7 * 24 * 60 * 60; // 7 days — analyst data changes weekly, prewarm script runs weekly
     let cached = 0;
     let skipped = 0;
 
@@ -662,7 +662,7 @@ export function createApiRouter(services: {
       message: 'Cache populated',
       cached,
       skipped,
-      ttlHours: 24,
+      ttlHours: 168, // 7 days
     });
   });
 

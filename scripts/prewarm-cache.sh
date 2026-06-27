@@ -149,7 +149,7 @@ PUSH_RESPONSE=$(curl -s --max-time 30 \
 
 if echo "$PUSH_RESPONSE" | grep -q '"cached"'; then
   CACHED=$(echo "$PUSH_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('cached',0))" 2>/dev/null)
-  echo "✅ Production cache updated! $CACHED stocks cached for 24 hours."
+  echo "✅ Production cache updated! $CACHED stocks cached for 7 days."
 else
   echo "❌ Failed to push to production. Response:"
   echo "$PUSH_RESPONSE"
