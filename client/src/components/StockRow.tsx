@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { QuoteData } from 'shared/types';
+import type { QuoteData, VWAPResult } from 'shared/types';
 import { useWatchlist } from '../context/WatchlistContext';
 import HoldingsModal from './HoldingsModal';
 
@@ -53,9 +53,10 @@ function formatTimestamp(isoString: string): string {
 
 interface StockRowProps {
   quote: QuoteData;
+  vwap?: VWAPResult | null;
 }
 
-export default function StockRow({ quote }: StockRowProps) {
+export default function StockRow({ quote, vwap }: StockRowProps) {
   const navigate = useNavigate();
   const prevPriceRef = useRef<number>(quote.price);
   const [flashClass, setFlashClass] = useState('');
@@ -93,7 +94,7 @@ export default function StockRow({ quote }: StockRowProps) {
         onKeyDown={(e) => e.key === 'Enter' && navigate(`/stock/${quote.symbol}`)}
       >
         <td className="cell-name">{quote.shortName}</td>
-        <td colSpan={5} className="cell-unavailable">Data Unavailable</td>
+        <td colSpan={6} className="cell-unavailable">Data Unavailable</td>
       </tr>
     );
   }
@@ -129,6 +130,30 @@ export default function StockRow({ quote }: StockRowProps) {
           </div>
         </td>
         <td className="cell-volume" onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatVolume(quote.volume)}</td>
+        <td
+          className={`cell-vwap ${
+            vwap ? (vwap.signal === 'above' ? 'vwap-above' : vwap.signal === 'below' ? 'vwap-below' : 'vwap-at') : ''
+          }`}
+          onClick={() => navigate(`/stock/${quote.symbol}`)}
+          title={
+            vwap
+              ? `VWAP ${formatINR(vwap.vwap)} • ${vwap.barsUsed} bars${vwap.isStale ? ' • previous session' : ''}`
+              : 'VWAP unavailable'
+          }
+        >
+          {vwap ? (
+            <div className="stacked-cell">
+              <span className="val-vwap">{formatINR(vwap.vwap)}</span>
+              <span className="val-vwap-dist">
+                {vwap.distancePercent >= 0 ? '+' : ''}
+                {vwap.distancePercent.toFixed(2)}%
+                {vwap.isStale && <span className="vwap-stale" title="Data from previous session"> •</span>}
+              </span>
+            </div>
+          ) : (
+            <span className="val-vwap-empty">—</span>
+          )}
+        </td>
         <td className="cell-updated" onClick={() => navigate(`/stock/${quote.symbol}`)}>{formatTimestamp(quote.lastUpdated)}</td>
         <td className="cell-actions">
           <button

@@ -19,6 +19,7 @@ import type { MultiAgentService } from '../services/multiAgentService.js';
 import { getAIStats, getAILogs } from '../services/aiObservability.js';
 import { seedVectorDB, findSimilarStocks, isVectorDBAvailable } from '../services/vectorService.js';
 import { createInvestmentDecisionService } from '../services/investmentDecisionService.js';
+import type { IntradayService } from '../services/intradayService.js';
 
 const VALID_RANGES = new Set<string>(['1d', '1w', '1mo', '3mo', '6mo', '1y']);
 
@@ -58,10 +59,12 @@ export function createApiRouter(services: {
   agentService: AgentService;
   multiAgentService: MultiAgentService;
   cache: CacheService;
+  intradayService: IntradayService;
 }): Router {
   const { yfService, marketStatusService, predictionEngine, analystDataService, marketPulseService, aiAnalysisService } = services;
   const agentService = services.agentService;
   const multiAgentService = services.multiAgentService;
+  const intradayService = services.intradayService;
   const router = Router();
 
   // Track all stock symbols ever requested by users (for dynamic prewarm)
@@ -92,6 +95,44 @@ export function createApiRouter(services: {
       res.json(quotes);
     } catch {
       res.status(503).json({ error: 'DATA_UNAVAILABLE', message: 'Failed to fetch quotes' });
+    }
+  });
+
+  // GET /api/vwap?symbols=RELIANCE.NS,TCS.NS — batch VWAP for intraday view
+  // VWAP is volume-weighted average price using today's 5-min bars from Yahoo.
+  // Note: Free Yahoo intraday data is 15-min delayed.
+  router.get('/vwap', async (req: Request, res: Response) => {
+    try {
+      const symbols = parseSymbols(req.query.symbols as string | undefined);
+      if (symbols.length === 0) {
+        res.json({ results: {}, generatedAt: new Date().toISOString() });
+        return;
+      }
+      const results = await intradayService.computeVWAPBatch(symbols);
+      res.json({
+        results,
+        generatedAt: new Date().toISOString(),
+        note: 'VWAP uses today\'s 5-min bars (Yahoo intraday is ~15 min delayed)',
+      });
+    } catch {
+      res.status(503).json({ error: 'VWAP_UNAVAILABLE', message: 'Failed to compute VWAP' });
+    }
+  });
+
+  // GET /api/vwap/:symbol — VWAP for a single symbol
+  router.get('/vwap/:symbol', async (req: Request, res: Response) => {
+    const symbol = req.params.symbol as string;
+    if (!validateSymbol(symbol, res)) return;
+
+    try {
+      const result = await intradayService.computeVWAP(symbol);
+      if (!result) {
+        res.status(503).json({ error: 'VWAP_UNAVAILABLE', symbol });
+        return;
+      }
+      res.json(result);
+    } catch {
+      res.status(503).json({ error: 'VWAP_UNAVAILABLE', symbol });
     }
   });
 

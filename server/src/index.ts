@@ -10,6 +10,7 @@ import { createMarketPulseService } from './services/marketPulseService.js';
 import { createAIAnalysisService } from './services/aiAnalysisService.js';
 import { createAgentService } from './services/agentService.js';
 import { createMultiAgentService } from './services/multiAgentService.js';
+import { createIntradayService } from './services/intradayService.js';
 import { createApiRouter } from './routes/api.js';
 
 const app = express();
@@ -37,6 +38,7 @@ const marketPulseService = createMarketPulseService(cache);
 const aiAnalysisService = createAIAnalysisService(cache);
 const agentService = createAgentService(cache, analystDataService, yfService, marketPulseService);
 const multiAgentService = createMultiAgentService(analystDataService, yfService, marketPulseService);
+const intradayService = createIntradayService(cache);
 
 // Check Python service availability on startup (with retry for Render cold start)
 async function checkPythonAndPrewarm() {
@@ -99,6 +101,7 @@ const apiRouter = createApiRouter({
   agentService,
   multiAgentService,
   cache,
+  intradayService,
 });
 app.use('/api', apiRouter);
 

@@ -141,3 +141,15 @@ export type TimeRange = '1d' | '1w' | '1mo' | '3mo' | '6mo' | '1y';
 
 export type SortField = 'name' | 'price' | 'dailyChangePercent' | 'volume';
 export type SortDirection = 'asc' | 'desc';
+
+export interface VWAPResult {
+  symbol: string;
+  vwap: number;
+  currentPrice: number;
+  distance: number;
+  distancePercent: number;
+  signal: 'above' | 'below' | 'at';
+  barsUsed: number;
+  isStale: boolean;
+  asOf: string;
+}

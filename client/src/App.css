@@ -1726,8 +1726,8 @@ main {
 
 @media (min-width: 768px) and (max-width: 1023px) {
   main { padding: 1.25rem 1rem; }
-  .stock-grid .cell-high, .stock-grid .cell-low, .stock-grid .cell-updated { display: none; }
-  .stock-grid thead th:nth-child(5), .stock-grid thead th:nth-child(6), .stock-grid thead th:nth-child(8) { display: none; }
+  .stock-grid .cell-high, .stock-grid .cell-low, .stock-grid .cell-updated, .stock-grid .cell-vwap { display: none; }
+  .stock-grid thead th:nth-child(5), .stock-grid thead th:nth-child(6), .stock-grid thead th:nth-child(7), .stock-grid thead th:nth-child(9) { display: none; }
   .prediction-cards { grid-template-columns: repeat(2, 1fr); }
   .metrics-grid { grid-template-columns: repeat(3, 1fr); }
   .mp-indicators-grid { grid-template-columns: repeat(4, 1fr); }
@@ -3029,6 +3029,19 @@ main {
 .cell-highlow { font-size: 0.82rem; font-weight: 500; }
 .cell-highlow .val-high { color: var(--green-strong); }
 .cell-highlow .val-low { color: var(--red-strong); opacity: 0.8; font-size: 0.8rem; }
+
+/* VWAP cell — colored by signal (above/below/at VWAP) */
+.cell-vwap { font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cell-vwap .val-vwap { font-size: 0.85rem; font-weight: 600; }
+.cell-vwap .val-vwap-dist { font-size: 0.78rem; opacity: 0.9; }
+.cell-vwap .val-vwap-empty { color: var(--text-tertiary); }
+.cell-vwap.vwap-above .val-vwap { color: var(--green-strong); }
+.cell-vwap.vwap-above .val-vwap-dist { color: var(--green-strong); }
+.cell-vwap.vwap-below .val-vwap { color: var(--red-strong); }
+.cell-vwap.vwap-below .val-vwap-dist { color: var(--red-strong); }
+.cell-vwap.vwap-at .val-vwap { color: var(--text-secondary); }
+.cell-vwap.vwap-at .val-vwap-dist { color: var(--text-tertiary); }
+.cell-vwap .vwap-stale { color: var(--text-tertiary); font-weight: 700; }
 
 /* Stacked header labels */
 .grid-header .header-line {
