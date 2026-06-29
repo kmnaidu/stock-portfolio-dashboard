@@ -1350,6 +1350,13 @@ main {
 
 .sr-indicator-value { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
 
+.sr-vwap-stale {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  font-size: 0.65rem;
+  text-transform: none;
+}
+
 .indicator-badge {
   font-size: 0.7rem;
   font-weight: 600;

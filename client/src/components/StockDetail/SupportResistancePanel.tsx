@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import type { VWAPResult } from 'shared/types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -59,6 +60,7 @@ function rsiLabel(rsi: number): { text: string; className: string } {
 
 export default function SupportResistancePanel({ symbol }: Props) {
   const [data, setData] = useState<SupportResistanceData | null>(null);
+  const [vwap, setVwap] = useState<VWAPResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -82,6 +84,27 @@ export default function SupportResistancePanel({ symbol }: Props) {
     }
     fetchData();
     return () => { cancelled = true; };
+  }, [symbol]);
+
+  // Fetch VWAP separately — refresh every 5 min for intraday accuracy
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchVWAP() {
+      try {
+        const res = await fetch(`${API_BASE}/api/vwap/${symbol}`);
+        if (!res.ok) {
+          if (!cancelled) setVwap(null);
+          return;
+        }
+        const json = (await res.json()) as VWAPResult;
+        if (!cancelled) setVwap(json);
+      } catch {
+        if (!cancelled) setVwap(null);
+      }
+    }
+    fetchVWAP();
+    const id = setInterval(fetchVWAP, 5 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(id); };
   }, [symbol]);
 
   if (loading) {
@@ -201,6 +224,28 @@ export default function SupportResistancePanel({ symbol }: Props) {
             <span className="sr-indicator-label">SMA 200</span>
             <span className="sr-indicator-value">{formatINR(data.sma200)}</span>
           </div>
+          {vwap && (
+            <div className="sr-indicator-item" title={`Volume-weighted average price using today's 5-min bars. ${vwap.barsUsed} bars used. Yahoo intraday is ~15 min delayed.${vwap.isStale ? ' Data is from the previous trading session.' : ''}`}>
+              <span className="sr-indicator-label">
+                VWAP (Intraday){vwap.isStale && <span className="sr-vwap-stale"> • prev session</span>}
+              </span>
+              <span className="sr-indicator-value">{formatINR(vwap.vwap)}</span>
+              <span
+                className={`indicator-badge ${
+                  vwap.signal === 'above'
+                    ? 'indicator-bullish'
+                    : vwap.signal === 'below'
+                    ? 'indicator-bearish'
+                    : 'indicator-neutral'
+                }`}
+              >
+                {vwap.signal === 'above' ? 'Above' : vwap.signal === 'below' ? 'Below' : 'At VWAP'}
+                {' '}
+                ({vwap.distancePercent >= 0 ? '+' : ''}
+                {vwap.distancePercent.toFixed(2)}%)
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>
