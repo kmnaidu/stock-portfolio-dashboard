@@ -37,19 +37,20 @@ export function sortQuotes(
 }
 
 /** Column definitions for the stock grid */
-const COLUMNS: { key: string; label: string; sortField?: SortField }[] = [
+const COLUMNS: { key: string; label: string; sortField?: SortField; title?: string }[] = [
   { key: 'name', label: 'Name', sortField: 'name' },
   { key: 'price', label: 'Price', sortField: 'price' },
   { key: 'change', label: 'Chng(₹)\nChng(%)', sortField: 'dailyChangePercent' },
   { key: 'highLow', label: 'D High\nD Low' },
   { key: '52w', label: '52W High\n52W Low' },
   { key: 'volume', label: 'Volume', sortField: 'volume' },
+  { key: 'vwap', label: 'VWAP\n(intraday)', title: 'Volume-weighted average price using today\'s 5-min bars. Yahoo intraday is ~15 min delayed. Green = price above VWAP (bullish), red = below (bearish).' },
   { key: 'updated', label: 'Updated' },
   { key: 'actions', label: '' },
 ];
 
 export default function StockGrid() {
-  const { quotes } = usePortfolio();
+  const { quotes, vwap } = usePortfolio();
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [showAll, setShowAll] = useState(false);
@@ -108,6 +109,7 @@ export default function StockGrid() {
                   col.sortField === sortField ? 'sorted' : ''
                 }`}
                 onClick={col.sortField ? () => handleSort(col.sortField!) : undefined}
+                title={col.title}
               >
                 {col.label.includes('\n')
                   ? col.label.split('\n').map((line, i) => <span key={i} className="header-line">{line}</span>)
@@ -123,7 +125,7 @@ export default function StockGrid() {
         </thead>
         <tbody>
           {visibleQuotes.map((quote) => (
-            <StockRow key={quote.symbol} quote={quote} />
+            <StockRow key={quote.symbol} quote={quote} vwap={vwap.get(quote.symbol) ?? null} />
           ))}
         </tbody>
       </table>
