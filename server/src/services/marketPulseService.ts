@@ -71,7 +71,10 @@ export interface MarketPulseData {
 // ── Fetch from Yahoo chart API ───────────────────────────────
 async function fetchYahooQuote(symbol: string): Promise<{ price: number; prevClose: number } | null> {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`;
+    // Use range=2d so that chartPreviousClose = yesterday's actual close.
+    // With range=5d, Yahoo sometimes returns null bars for intermediate days,
+    // causing incorrect previous close calculation.
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=2d&interval=1d`;
     const res = await fetch(url, { headers: YF_HEADERS, signal: AbortSignal.timeout(8000) });
     if (!res.ok) return null;
     const json = (await res.json()) as any;
@@ -81,27 +84,10 @@ async function fetchYahooQuote(symbol: string): Promise<{ price: number; prevClo
 
     const currentPrice = meta.regularMarketPrice ?? 0;
 
-    // Determine previous close from daily bars.
-    // Yahoo returns 5 days of daily data. Today's bar may be null (market still open).
-    // Logic:
-    //   - If last bar is null → market is open today, last non-null = yesterday's close (= prev close)
-    //   - If last bar is NOT null → market closed today, last non-null = today's close,
-    //     second-to-last = yesterday's close (= prev close)
-    const closes: (number | null)[] = result?.indicators?.quote?.[0]?.close ?? [];
-    const nonNullCloses = closes.filter((c): c is number => c != null);
-    const lastBarIsNull = closes.length > 0 && closes[closes.length - 1] == null;
-
-    let prevClose = 0;
-    if (lastBarIsNull && nonNullCloses.length >= 1) {
-      // Market is open today — last non-null close IS yesterday's close
-      prevClose = nonNullCloses[nonNullCloses.length - 1];
-    } else if (nonNullCloses.length >= 2) {
-      // Market closed today — second-to-last is yesterday's close
-      prevClose = nonNullCloses[nonNullCloses.length - 2];
-    } else {
-      // Fallback if we don't have enough data
-      prevClose = meta.chartPreviousClose ?? meta.previousClose ?? 0;
-    }
+    // With range=2d, chartPreviousClose is the close of the trading day
+    // immediately before the range — i.e., yesterday's close. This is the
+    // most reliable source for previous close from Yahoo's v8 chart API.
+    const prevClose = meta.chartPreviousClose ?? 0;
 
     return { price: currentPrice, prevClose };
   } catch {
@@ -162,14 +148,15 @@ async function fetchNiftyPivotLevels(currentPrice: number): Promise<MarketPulseD
     const lows: (number | null)[] = quotes.low ?? [];
     const closes: (number | null)[] = quotes.close ?? [];
 
-    // Get the last completed trading day's OHLC (second-to-last non-null values)
+    // Get the last completed trading day's OHLC
+    // Filter out null values and use the most recent valid set
     const validHighs = highs.filter((v): v is number => v != null);
     const validLows = lows.filter((v): v is number => v != null);
     const validCloses = closes.filter((v): v is number => v != null);
 
-    if (validHighs.length < 2 || validLows.length < 2 || validCloses.length < 2) return undefined;
+    if (validHighs.length < 1 || validLows.length < 1 || validCloses.length < 1) return undefined;
 
-    // Use the most recent completed day (last values represent today if market was open)
+    // Use the last valid values (today or most recent completed day)
     const high = validHighs[validHighs.length - 1];
     const low = validLows[validLows.length - 1];
     const close = validCloses[validCloses.length - 1];
